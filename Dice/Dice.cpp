@@ -385,6 +385,7 @@ EVE_Enable(eventEnable)
 	threads(ConsoleTimer);
 	threads(warningHandler);
 	threads(frqHandler);
+	sch.start();
 	//÷»ÄïÍøÂç
 	getDiceList();
 	Cloud::update();
@@ -761,6 +762,7 @@ EVE_Disable(eventDisable)
 	Enabled = false;
 	threads = {};
 	dataBackUp();
+	sch.end();
 	fmt.reset();
 	gm.reset();
 	PList.clear();

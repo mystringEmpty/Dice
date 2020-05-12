@@ -9,48 +9,38 @@
 #include <queue>
 #include "CQAPI_EX.h"
 #include "MsgMonitor.h"
-#include "DiceMsgSend.h"
+#include "DiceSchedule.h"
 
 using std::string;
 //打包待处理消息
-class FromMsg {
+class FromMsg :public DiceJobDetail {
 public:
-	std::string strMsg;
 	string strLowerMessage;
-	long long fromID = 0;
-	CQ::msgtype fromType = CQ::msgtype::Private;
-	long long fromQQ = 0;
 	long long fromGroup = 0;
 	Chat* pGrp = nullptr;
-	chatType fromChat;
-	time_t fromTime = time(NULL);
 	string strReply;
-	//临时变量库
-	map<string, string> strVar = {};
-	FromMsg(std::string message, long long fromNum) :strMsg(message), fromID(fromNum), fromQQ(fromNum) {
-		fromChat = { fromID,CQ::msgtype::Private };
-	}
-	FromMsg(std::string message, long long fromGroup, CQ::msgtype msgType, long long fromNum) :strMsg(message), fromID(fromGroup), fromType(msgType), fromQQ(fromNum), fromGroup(fromGroup), fromChat({ fromGroup,fromType }) {
+	FromMsg(std::string message, long long qq) :DiceJobDetail(qq, { qq,CQ::msgtype::Private }, message){}
+	FromMsg(std::string message, long long fromGroup, CQ::msgtype msgType, long long qq) :DiceJobDetail(qq, { fromGroup,msgType }, message), fromGroup(fromGroup) {
 		pGrp = &chat(fromGroup);
 	}
 	bool isBlock = false;
 	void reply(std::string strReply, bool isFormat) {
 		isAns = true;
 		if (isFormat)
-			AddMsgToQueue(format(strReply, GlobalMsg, strVar), fromID, fromType); 
-		else AddMsgToQueue(strReply, fromID, fromType);
+			AddMsgToQueue(format(strReply, GlobalMsg, strVar), fromChat);
+		else AddMsgToQueue(strReply, fromChat);
 	}
 	void reply(std::string strReply, const std::initializer_list<const std::string> replace_str = {}, bool isFormat = true) {
 		isAns = true;
 		if (!isFormat) {
-			AddMsgToQueue(strReply, fromID, fromType);
+			AddMsgToQueue(strReply, fromChat);
 			return;
 		}
 		int index = 0;
 		for (auto s : replace_str) {
 			strVar[to_string(index++)] = s;
 		}
-		AddMsgToQueue(format(strReply, GlobalMsg, strVar), fromID, fromType);
+		AddMsgToQueue(format(strReply, GlobalMsg, strVar), fromChat);
 	}
 	void reply() {
 		reply(strReply);
@@ -71,8 +61,8 @@ public:
 	//打印消息来源
 	std::string printFrom() {
 		std::string strFwd;
-		if (fromType == CQ::msgtype::Group)strFwd += "[群:" + to_string(fromGroup) + "]";
-		if (fromType == CQ::msgtype::Discuss)strFwd += "[讨论组:" + to_string(fromGroup) + "]";
+		if (fromChat.second == CQ::msgtype::Group)strFwd += "[群:" + to_string(fromGroup) + "]";
+		if (fromChat.second == CQ::msgtype::Discuss)strFwd += "[讨论组:" + to_string(fromGroup) + "]";
 		strFwd += getName(fromQQ, fromGroup) + "(" + to_string(fromQQ) + "):";
 		return strFwd;
 	}
@@ -144,7 +134,9 @@ private:
 		string strPara;
 		while (intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])))intMsgCnt++;
 		while (intMsgCnt < strMsg.length() && !isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])) && !isdigit(static_cast<unsigned char>(strLowerMessage[intMsgCnt]))
-			&& (strLowerMessage[intMsgCnt] != '-') && (strLowerMessage[intMsgCnt] != '+') && (strLowerMessage[intMsgCnt] != '[') && (strLowerMessage[intMsgCnt] != ']') && (strLowerMessage[intMsgCnt] != '=') && (strLowerMessage[intMsgCnt] != ':')
+			&& (strLowerMessage[intMsgCnt] != '-') && (strLowerMessage[intMsgCnt] != '+') 
+			&& (strLowerMessage[intMsgCnt] != '[') && (strLowerMessage[intMsgCnt] != ']') 
+			&& (strLowerMessage[intMsgCnt] != '=') && (strLowerMessage[intMsgCnt] != ':')
 			&& intMsgCnt != strLowerMessage.length()) {
 			strPara += strLowerMessage[intMsgCnt];
 			intMsgCnt++;

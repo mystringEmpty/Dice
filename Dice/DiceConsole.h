@@ -32,6 +32,7 @@ public:
 	long long DiceMaid = 0;
 	friend void ConsoleTimer();
 	friend class FromMsg;
+	friend class DiceJob;
 	//DiceSens DSens;
 	using Clock = std::pair<unsigned short, unsigned short>;
 	static const enumap<string> mClockEvent;
@@ -94,6 +95,7 @@ public:
 		return true;
 	}
 	void save() {
+		mkDir("DiceData\\conf");
 		DDOM xml("console","");
 		xml.push(DDOM("mode", to_string(isMasterMode)));
 		xml.push(DDOM("master", to_string(masterQQ)));

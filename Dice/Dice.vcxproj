@@ -223,6 +223,7 @@
     <ClCompile Include="DiceMod.cpp" />
     <ClCompile Include="DiceMsgSend.cpp" />
     <ClCompile Include="DiceNetwork.cpp" />
+    <ClCompile Include="DiceSchedule.cpp" />
     <ClCompile Include="DiceSession.cpp" />
     <ClCompile Include="DiceUpdate.cpp" />
     <ClCompile Include="dllmain.cpp" />
@@ -271,6 +272,7 @@
     <ClInclude Include="DiceMod.h" />
     <ClInclude Include="DiceMsgSend.h" />
     <ClInclude Include="DiceNetwork.h" />
+    <ClInclude Include="DiceSchedule.h" />
     <ClInclude Include="DiceSession.h" />
     <ClInclude Include="DiceXMLTree.h" />
     <ClInclude Include="EncodingConvert.h" />

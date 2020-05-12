@@ -1,6 +1,4 @@
-#include <Windows.h>
-#include <TlHelp32.h>
-#include <Psapi.h>
+#include <windows.h>
 #include "DiceEvent.h"
 #include "Jsonio.h"
 #include "MsgFormat.h"
@@ -13,7 +11,6 @@
 
 #include "CQAPI.h"
 #include <iostream>
-//#pragma warning(disable:28159)
 using namespace std;
 using namespace CQ;
 
@@ -559,13 +556,13 @@ int FromMsg::MasterSet() {
 int FromMsg::DiceReply() {
 	if (strMsg[0] != '.')return 0;
 	intMsgCnt++;
-	int intT = (int)fromType;
+	int intT = (int)fromChat.second;
 	while (isspace(static_cast<unsigned char>(strMsg[intMsgCnt])))
 		intMsgCnt++;
 	strVar["nick"] = getName(fromQQ, fromGroup);
 	strVar["pc"] = getPCName(fromQQ, fromGroup);
 	strVar["at"] = intT ? "[CQ:at,qq=" + to_string(fromQQ) + "]" : strVar["nick"];
-	isAuth = trusted > 3 || fromType != msgtype::Group || getGroupMemberInfo(fromGroup, fromQQ).permissions > 1;
+	isAuth = trusted > 3 || intT != GroupT || getGroupMemberInfo(fromGroup, fromQQ).permissions > 1;
 	strLowerMessage = strMsg;
 	std::transform(strLowerMessage.begin(), strLowerMessage.end(), strLowerMessage.begin(), [](unsigned char c) { return tolower(c); });
 	//指令匹配
@@ -719,24 +716,20 @@ int FromMsg::DiceReply() {
 					}
 				}
 			}
-			else if (Command == "off")
-			{
-				if (fromType == msgtype(intT)) {
-					if (isAuth)
-					{
-						if (groupset(fromGroup, "停用指令")) {
-							if (!isCalled && QQNum.empty() && pGrp->isGroup && GroupInfo(fromGroup).nGroupSize > 200)AddMsgToQueue(getMsg("strBotOffAlready", strVar), fromQQ);
-							else reply(GlobalMsg["strBotOffAlready"]);
-						}
-						else {
-							chat(fromGroup).set("停用指令");
-							reply(GlobalMsg["strBotOff"]);
-						}
+			else if (Command == "off"){
+				if (isAuth){
+					if (groupset(fromGroup, "停用指令")) {
+						if (!isCalled && QQNum.empty() && pGrp->isGroup && GroupInfo(fromGroup).nGroupSize > 200)AddMsgToQueue(getMsg("strBotOffAlready", strVar), fromQQ);
+						else reply(GlobalMsg["strBotOffAlready"]);
 					}
 					else {
-						if (groupset(fromGroup, "停用指令"))AddMsgToQueue(getMsg("strPermissionDeniedErr", strVar), fromQQ);
-						else reply(GlobalMsg["strPermissionDeniedErr"]);
+						chat(fromGroup).set("停用指令");
+						reply(GlobalMsg["strBotOff"]);
 					}
+				}
+				else {
+					if (groupset(fromGroup, "停用指令"))AddMsgToQueue(getMsg("strPermissionDeniedErr", strVar), fromQQ);
+					else reply(GlobalMsg["strPermissionDeniedErr"]);
 				}
 			}
 			else if (!Command.empty() && !isCalled && pGrp->isset("停用指令")) {
@@ -995,59 +988,21 @@ int FromMsg::DiceReply() {
 				reply("Mirai不支持此功能");
 				return -1;
 			}
-			if (trusted < 5) {
+			if (trusted < 5 && fromQQ != console.master()) {
 				reply(GlobalMsg["strNotMaster"]);
 				return -1;
 			}
-
-			string strSelfName;
-			int pid = _getpid();
-			PROCESSENTRY32 pe32;
-			pe32.dwSize = sizeof(pe32);
-			HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-			if (hProcessSnap == INVALID_HANDLE_VALUE) {
-				note("重启失败：进程快照创建失败！",1);
-				return false;
-			}
-			BOOL bResult = Process32First(hProcessSnap, &pe32);
-			int ppid(0);
-			while (bResult){
-				if (pe32.th32ProcessID == pid) {
-					ppid = pe32.th32ParentProcessID;
-					reply("确认进程" + strModulePath + "\n本进程id:" + to_string(pe32.th32ProcessID) + "\n父进程id:" + to_string(pe32.th32ParentProcessID));
-					strSelfName = pe32.szExeFile;
-					break;
-				}
-				bResult = Process32Next(hProcessSnap, &pe32);
-			}
-			if (!ppid) {
-				note("重启失败：未找到进程！", 1);
+			cmd_key = "reload";
+			sch.push_job(*this);
+			return 1;
+		}
+		else if (strOption == "die") {
+			if (trusted < 5 && fromQQ != console.master()) {
+				reply(GlobalMsg["strNotMaster"]);
 				return -1;
 			}
-			string command = "taskkill /f /pid " + to_string(ppid) + "\nstart .\\" + strSelfName + " /account " + to_string(getLoginQQ());
-			//string command = "taskkill /f /pid " + to_string(ppid) + "\ntaskkill /f /pid " + to_string(pid) + "\nstart " + strSelfPath + " /account " + to_string(getLoginQQ()) + "\ntimeout /t 60\ndel %0";
-			ofstream fout("reload.bat");
-			fout << command << std::endl;
-			fout.close();
-			note(command, 0);
-			this_thread::sleep_for(5s);
-			Enabled = false;
-			dataBackUp();
-			switch (UINT res = -1;res = WinExec(".\\reload.bat", SW_SHOW)) {
-			case 0:
-				note("重启失败：内存或资源已耗尽！", 1);
-				break;
-			case ERROR_FILE_NOT_FOUND:
-				note("重启失败：指定的文件未找到！", 1);
-				break;
-			case ERROR_PATH_NOT_FOUND:
-				note("重启失败：指定的路径未找到！", 1);
-				break;
-			default:
-				if (res > 31)note("重启成功" + to_string(res), 0);
-				else note("重启失败：未知错误" + to_string(res), 0);
-				break;
-			};
+			cmd_key = "die";
+			sch.push_job(*this);
 			return 1;
 		}
 		else if (strOption == "rexplorer") {
@@ -1083,24 +1038,13 @@ int FromMsg::DiceReply() {
 			return 1;
 		}
 		if (strOpt == "update") {
-			string strPara = readPara();
-			if (strPara.empty()) {
+			strVar["ver"] = readPara();
+			if (strVar["ver"].empty()) {
 				Cloud::checkUpdate(this);
 			}
-			else if (strPara == "dev" || strPara == "release") {
-				string strAppPath(strModulePath);
-				strAppPath = strAppPath.substr(0, strAppPath.find_last_of("\\")) + "\\app\\com.w4123.dice.cpk";
-
-				switch (Cloud::DownloadFile(("http://shiki.stringempty.xyz/DiceVer/" + strPara + "?" + to_string(fromTime)).c_str(), strAppPath.c_str())) {
-				case -1:
-					reply("下载失败:" + strAppPath);
-					break;
-				case -2:
-					reply("文件未找到:" + strAppPath);
-					break;
-				case 0:
-					note("更新开发版成功√\n可reload应用更新");
-				}
+			else if (strVar["ver"] == "dev" || strVar["ver"] == "release") {
+				cmd_key = "update";
+				sch.push_job(*this);
 			}
 			return 1;
 		}
@@ -3612,7 +3556,7 @@ int FromMsg::CustomReply() {
 		if (strVar.empty()) {
 			strVar["nick"] = getName(fromQQ, fromGroup);
 			strVar["pc"] = getPCName(fromQQ, fromGroup);
-			strVar["at"] = fromType != msgtype::Private ? "[CQ:at,qq=" + to_string(fromQQ) + "]" : strVar["nick"];
+			strVar["at"] = fromChat.second!=CQ::msgtype::Private ? "[CQ:at,qq=" + to_string(fromQQ) + "]" : strVar["nick"];
 		}
 		reply(CardDeck::drawCard(deck->second, true));
 		AddFrq(fromQQ, fromTime, fromChat);
@@ -3648,13 +3592,13 @@ bool FromMsg::DiceFilter() {
 	}
 	if (isOtherCalled && !isCalled)return false;
 	init2(strMsg);
-	if (fromType == msgtype::Private) isCalled = true;
+	if (fromChat.second == msgtype::Private) isCalled = true;
 	trusted = trustedQQ(fromQQ);
 	isBotOff = (console["DisabledGlobal"] && (trusted < 4 || !isCalled)) || (!(isCalled && console["DisabledListenAt"]) && (groupset(fromGroup, "停用指令") > 0));
 	if (DiceReply()) {
 		AddFrq(fromQQ, fromTime, fromChat);
 		if (isAns)getUser(fromQQ).update(fromTime);
-		if (fromType != msgtype::Private)chat(fromGroup).update(fromTime);
+		if (fromChat.second != msgtype::Private)chat(fromGroup).update(fromTime);
 		return 1;
 	}
 	else if (groupset(fromGroup, "禁用回复") < 1 && CustomReply())return 1;
