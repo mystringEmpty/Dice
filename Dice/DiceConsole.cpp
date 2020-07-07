@@ -7,7 +7,8 @@
  * |_______/  |________| |________| |________| |__|
  *
  * Dice! QQ Dice Robot for TRPG
- * Copyright (C) 2018-2019 w4123溯洄
+ * Copyright (C) 2018-2020 w4123溯洄
+ * Copyright (C) 2019-2020 String.Empty
  *
  * This program is free software: you can redistribute it and/or modify it under the terms
  * of the GNU Affero General Public License as published by the Free Software Foundation,
@@ -45,9 +46,12 @@ const std::map<std::string, int, less_ci>Console::intDefault{
 {"ListenGroupKick",1},{"ListenGroupBan",1},{"ListenSpam",1},
 {"BannedLeave",0},{"BannedBanInviter",0},
 {"KickedBanInviter",0},
+{"GroupClearLimit",20},
 {"CloudBlackShare",1},{"BelieveDiceList",0},{"CloudVisible",1},
-{"SystemAlarmCPU",90},{"SystemAlarmRAM",90},
-{"SendIntervalIdle",500},{"SendIntervalBusy",100}
+{"SystemAlarmCPU",90},{"SystemAlarmRAM",90},{"SystemAlarmDisk",90},
+{"SendIntervalIdle",500},{"SendIntervalBusy",100},
+//自动保存事件间隔[min],自动图片清理间隔[h]
+{"AutoSaveInterval",10},{"AutoClearImage",0}
 };
 const enumap<string> Console::mClockEvent { "off", "on", "save", "clear" };
 int Console::setClock(Clock c, ClockEvent e) {
@@ -252,8 +256,6 @@ bool operator<(const Console::Clock clock, const SYSTEMTIME& st) {
 //简易计时器
 	void ConsoleTimer() {
 		Console::Clock clockNow{ stNow.wHour,stNow.wMinute };
-		long long perLastCPU = 0;
-		long long perLastRAM = 0;
 		while (Enabled) {
 			GetLocalTime(&stNow);
 			//分钟时点变动
@@ -279,28 +281,10 @@ bool operator<(const Console::Clock clock, const SYSTEMTIME& st) {
 						console.log(GlobalMsg["strSelfName"] + "定时保存完成√", 1, printSTime(stTmp));
 						break;
 					case ClockEvent::clear:
-						if (console && console["AutoClearBlack"] && clearGroup("black"))
+						if (clearGroup("black"))
 							console.log(GlobalMsg["strSelfName"] + "定时清群完成√", 1, printSTNow());
 						break;
 					default:break;
-					}
-				}
-				//整点事件
-				if (stNow.wMinute % 10 == 0) {
-					Cloud::update();
-				}
-				if (stNow.wMinute % 30 == 0) {
-					if (console["SystemAlarmCPU"]) {
-						long long perCPU = getWinCpuUsage();
-						if (perCPU > console["SystemAlarmCPU"] && perCPU > perLastCPU)console.log("警告：" + GlobalMsg["strSelfName"] + "所在系统CPU占用达" + to_string(perCPU) + "%", 0b1001, printSTime(stNow));
-						else if (perLastCPU > console["SystemAlarmCPU"] && perCPU < console["SystemAlarmCPU"])console.log("提醒：" + GlobalMsg["strSelfName"] + "所在系统CPU占用降至" + to_string(perCPU) + "%", 0b11, printSTime(stNow));
-						perLastCPU = perCPU;
-					}
-					if (console["SystemAlarmRAM"]) {
-						long long perRAM = getRamPort();
-						if(perRAM > console["SystemAlarmRAM"] && perRAM > perLastRAM)console.log("警告：" + GlobalMsg["strSelfName"] + "所在系统内存占用达" + to_string(perRAM) + "%", 0b1001, printSTime(stNow));
-						else if (perLastRAM > console["SystemAlarmRAM"] && perRAM < console["SystemAlarmRAM"])console.log("提醒：" + GlobalMsg["strSelfName"] + "所在系统内存占用降至" + to_string(perRAM) + "%", 0b11, printSTime(stNow));
-						perLastRAM = perRAM;
 					}
 				}
 			}

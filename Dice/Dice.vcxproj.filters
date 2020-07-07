@@ -118,7 +118,10 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="DiceSchedule.cpp">
-      <Filter>头文件</Filter>
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DiceJob.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -267,6 +270,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="DiceSchedule.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DiceJob.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

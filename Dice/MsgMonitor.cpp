@@ -7,6 +7,8 @@
 #include <mutex>
 #include "MsgMonitor.h"
 
+std::atomic<unsigned int> FrqMonitor::sumFrqTotal = 0;
+std::atomic<unsigned int> FrqMonitor::sumFrqToday = 0;
 std::map<long long, int> FrqMonitor::mFrequence = {};
 std::map<long long, int> FrqMonitor::mWarnLevel = {};
 
@@ -103,10 +105,10 @@ EVE_Status_EX(statusFrq) {
 	else {
 		eve.data = std::to_string(intFrq);
 		eve.dataf = "/min";
-		if (intFrq < 60) {
+		if (intFrq < 10) {
 			eve.color_green();
 		}
-		else if (intFrq < 120) {
+		else if (intFrq < 20) {
 			eve.color_orange();
 		}
 		else {

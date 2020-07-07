@@ -220,6 +220,7 @@
     <ClCompile Include="DiceConsole.cpp" />
     <ClCompile Include="DiceEvent.cpp" />
     <ClCompile Include="DiceFile.cpp" />
+    <ClCompile Include="DiceJob.cpp" />
     <ClCompile Include="DiceMod.cpp" />
     <ClCompile Include="DiceMsgSend.cpp" />
     <ClCompile Include="DiceNetwork.cpp" />
@@ -269,6 +270,7 @@
     <ClInclude Include="DiceConsole.h" />
     <ClInclude Include="DiceEvent.h" />
     <ClInclude Include="DiceFile.hpp" />
+    <ClInclude Include="DiceJob.h" />
     <ClInclude Include="DiceMod.h" />
     <ClInclude Include="DiceMsgSend.h" />
     <ClInclude Include="DiceNetwork.h" />

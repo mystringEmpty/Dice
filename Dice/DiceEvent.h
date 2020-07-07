@@ -32,6 +32,8 @@ public:
 	}
 	void reply(std::string strReply, const std::initializer_list<const std::string> replace_str = {}, bool isFormat = true) {
 		isAns = true;
+		while (isspace(static_cast<unsigned char>(strReply[0])))
+			strReply.erase(strReply.begin());
 		if (!isFormat) {
 			AddMsgToQueue(strReply, fromChat);
 			return;

@@ -20,6 +20,12 @@ struct DiceJobDetail {
         :fromQQ(qq), fromChat(ct), strMsg(msg),cmd_key(cmd) {
 
     }
+    string operator[](const char* key){
+        return strVar[key];
+    }
+    bool operator<(const DiceJobDetail& other)const {
+        return strcmp(cmd_key, other.cmd_key) < 0;
+    }
 };
 
 class DiceJob : public DiceJobDetail {
@@ -33,10 +39,16 @@ public:
 };
 
 class DiceScheduler {
+    //ÊÂ¼þÀäÈ´ÆÚ
+    unordered_map<string, time_t> untilJobs;
 public:
     void start();
     void end();
-    void push_job(DiceJobDetail&);
+    void push_job(const DiceJobDetail*);
+    void add_job_for(unsigned int, const DiceJobDetail*);
+    void add_job_until(time_t, const DiceJobDetail*);
+    bool is_job_cold(const char*);
+    void refresh_cold(const char*, time_t);
 };
 inline DiceScheduler sch;
 

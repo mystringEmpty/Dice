@@ -206,7 +206,6 @@ EVE_Enable(eventEnable)
 		for (auto& [key, val] : boolConsole) {
 			console.set(key, val);
 		}
-		console.setClock({ 4, 4 }, ClockEvent::save);
 		console.setClock({ 5, 5 }, ClockEvent::clear);
 		console.loadNotice();
 		console.save();
@@ -388,7 +387,6 @@ EVE_Enable(eventEnable)
 	sch.start();
 	//骰娘网络
 	getDiceList();
-	Cloud::update();
 	console.log(GlobalMsg["strSelfName"] + "初始化完成，用时" + to_string((clock() - llStartTime) / 1000) + "秒", 0b1, printSTNow());
 	llStartTime = clock();
 	return 0;
@@ -652,7 +650,7 @@ EVE_System_GroupBan(eventGroupBan) {
 	else {
 		string strNow = printSTNow();
 		long long llOwner = 0;
-		string strNote = "在" + printGroup(fromGroup) + "中," + printQQ(beingOperateQQ) + "被" + printQQ(fromQQ) + "禁言" + to_string(duration) + "秒";
+		string strNote = "在" + printGroup(fromGroup) + "中," + printQQ(beingOperateQQ) + "被" + printQQ(fromQQ) + "禁言" + printDuringTime(duration);
 		if (trustedQQ(fromQQ) > 1 || grp.isset("免黑")){
 			console.log(strNote, 0b10, strNow);
 			return 1;

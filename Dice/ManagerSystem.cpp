@@ -9,7 +9,7 @@
 
 string DiceDir = "DiceData";
  //被引用的图片列表
-set<string> sReferencedImage;
+unordered_set<string> sReferencedImage;
 
 const map<string, short> mChatConf{//0-群管理员，2-白名单2级，3-白名单3级，4-管理员，5-系统操作
 	{"忽略",4},
@@ -52,8 +52,8 @@ int clearUser() {
 	return QQDelete.size();
 }
 
-string getName(long long QQ, long long GroupID)
-{
+string getName(long long QQ, long long GroupID){
+	if (QQ == console.DiceMaid)return getMsg("strSelfCall");
 	string nick;
 	if (UserList.count(QQ) && getUser(QQ).getNick(nick, GroupID))return nick;
 	if (GroupID && !(nick = strip(CQ::getGroupMemberInfo(GroupID, QQ).GroupNick)).empty())return nick;
@@ -114,7 +114,7 @@ string printChat(Chat& grp) {
 	return "讨论组" + to_string(grp.ID) + "";
 }
 
-void scanImage(string s, set<string>& list) {
+void scanImage(string s, unordered_set<string>& list) {
 	int l = 0, r = 0;
 	while ((l = s.find('[', r)) != string::npos && (r = s.find(']', l)) != string::npos) {
 		if (s.substr(l, 15) != CQ_IMAGE)continue;
@@ -124,26 +124,10 @@ void scanImage(string s, set<string>& list) {
 	}
 }
 
-void scanImage(const vector<string>& v, set<string>& list) {
+void scanImage(const vector<string>& v, unordered_set<string>& list) {
 	for (auto it : v) {
 		scanImage(it, sReferencedImage);
 	}
-}
-
-
-int clearImage() {
-	scanImage(GlobalMsg, sReferencedImage);
-	scanImage(HelpDoc, sReferencedImage);
-	scanImage(CardDeck::mPublicDeck, sReferencedImage);
-	scanImage(CardDeck::mReplyDeck, sReferencedImage);
-	scanImage(CardDeck::mGroupDeck, sReferencedImage);
-	scanImage(CardDeck::mPrivateDeck, sReferencedImage);
-	for (auto it : ChatList) {
-		scanImage(it.second.strConf, sReferencedImage);
-	}
-	string strLog = "整理" + GlobalMsg["strSelfName"] + "被引用图片" + to_string(sReferencedImage.size()) + "项";
-	console.log(strLog, 0b0, printSTNow());
-	return clrDir("data\\image\\", sReferencedImage);
 }
 
 DWORD getRamPort() {
@@ -161,7 +145,7 @@ __int64 compareFileTime(FILETIME& ft1, FILETIME& ft2) {
 	return t1 - t2;
 }
 
-__int64 getWinCpuUsage() {
+long long getWinCpuUsage() {
 	HANDLE hEvent;
 	BOOL res;
 	FILETIME preidleTime;
@@ -185,11 +169,10 @@ __int64 getWinCpuUsage() {
 	__int64 kernel = compareFileTime(kernelTime, prekernelTime);
 	__int64 user = compareFileTime(userTime, preuserTime);
 
-	__int64 cpu = (kernel + user - idle) * 100 / (kernel + user);
-	return cpu;
+	return (kernel + user - idle) * 1000 / (kernel + user);
 }
 
-int getProcessCpu()
+long long getProcessCpu()
 {
 	HANDLE hProcess = GetCurrentProcess();
 	//if (INVALID_HANDLE_VALUE == hProcess){return -1;}
@@ -213,6 +196,30 @@ int getProcessCpu()
 	__int64 ullKernelTime = compareFileTime(ftKernelTime, ftPreKernelTime);
 	__int64 ullUserTime = compareFileTime(ftUserTime, ftPreUserTime);
 	log << ullKernelTime << "\n" << ullUserTime << "\n" << iCpuNum;
-	__int64 dCpu = (ullKernelTime + ullUserTime) / (iCpuNum * 100);
-	return (int)dCpu;
+	return (ullKernelTime + ullUserTime) / (iCpuNum * 10);
+}
+
+//获取空闲硬盘(千分比)
+long long getDiskUsage(double& mbFreeBytes, double& mbTotalBytes){
+	/*int sizStr = GetLogicalDriveStrings(0, NULL);//获得本地所有盘符存在Drive数组中
+	char* chsDrive = new char[sizStr];//初始化数组用以存储盘符信息
+	GetLogicalDriveStrings(sizStr, chsDrive);
+	int DType;
+	int si = 0;*/
+	BOOL fResult;
+	unsigned _int64 i64FreeBytesToCaller;
+	unsigned _int64 i64TotalBytes;
+	unsigned _int64 i64FreeBytes;
+	fResult = GetDiskFreeSpaceEx(
+		NULL,
+		(PULARGE_INTEGER)&i64FreeBytesToCaller,
+		(PULARGE_INTEGER)&i64TotalBytes,
+		(PULARGE_INTEGER)&i64FreeBytes);
+	//GetDiskFreeSpaceEx函数，可以获取驱动器磁盘的空间状态,函数返回的是个BOOL类型数据
+	if (fResult) {
+		mbTotalBytes = i64TotalBytes * 1000 / 1024 / 1024 / 1024 / 1000.0;//磁盘总容量
+		mbFreeBytes = i64FreeBytesToCaller * 1000 / 1024 / 1024 / 1024 / 1000.0;//磁盘剩余空间
+		return 1000 - 1000 * i64FreeBytesToCaller / i64TotalBytes;
+	}
+	return 0;
 }

@@ -301,7 +301,10 @@ std::map<std::string, std::string> GlobalMsg
 
 std::map<std::string, std::string> EditedMsg;
 const std::map<std::string, std::string, less_ci> HelpDoc = {
-{"更新",R"(556:黑名单系统重做
+{"更新",R"(
+560:支持Mirai加载
+557:定时作业系统
+556:黑名单系统重做
 555:用户记录/群管系统
 554:新增多角色卡功能
 553:name功能调整

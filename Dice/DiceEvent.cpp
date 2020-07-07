@@ -499,9 +499,13 @@ int FromMsg::MasterSet() {
 		return 1;
 	}
 	else if (strOption == "reset") {
+		if (console.master() != fromQQ) {
+			reply(GlobalMsg["strNotMaster"]);
+			return 1;
+		}
 		string strMaster = readDigit();
 		if (strMaster.empty() || stoll(strMaster) == console.master()) {
-			reply("Master不要消遣于我!");
+			reply("Master不要消遣{strSelfCall}!");
 		}
 		else {
 			console.newMaster(stoll(strMaster));
@@ -942,45 +946,29 @@ int FromMsg::DiceReply() {
 		}
 		else if (strOption == "state") {
 			GetLocalTime(&stNow);
-			strReply = "本地时间：" + printSTime(stNow) + "\n";
-			strReply += "内存占用：" + to_string(getRamPort()) + "%\n";
-			strReply += "CPU占用：" + to_string(getWinCpuUsage()) + "%\n";
-			//strReply += "CPU占用：" + to_string(getWinCpuUsage()) + "% / 进程占用：" + to_string(getProcessCpu() / 100.0) + "%\n";
-			//strReply += "本机运行时间：" + std::to_string(clock()) + " 启动时间：" + std::to_string(llStartTime) + "\n";
-			strReply += "运行时长：";
-			long long llDuration = (clock() - llStartTime) / 1000;
-			if (llDuration < 0) {
-				strReply += "N/A";
-			}
-			else if (llDuration < 60 * 2) {
-				strReply += std::to_string(llDuration) + "秒";
-			}
-			else if (llDuration < 60 * 60 * 2) {
-				strReply += std::to_string(llDuration / 60) + "分" + std::to_string(llDuration % 60) + "秒";
-			}
-			else if (llDuration < 60 * 60 * 24 * 2) {
-				strReply += std::to_string(llDuration / 60 / 60) + "小时" + std::to_string(llDuration / 60 % 60) + "分";
-			}
-			else if (llDuration < 60 * 60 * 24 * 10) {
-				strReply += std::to_string(llDuration / 60 / 60 / 24) + "天" + std::to_string(llDuration / 60 / 60 % 24) + "小时";
-			}
-			else {
-				strReply += std::to_string(llDuration / 60 / 60 / 24) + "天";
-			}
-			reply();
+			double mbFreeBytes = 0, mbTotalBytes = 0;
+			long long milDisk(getDiskUsage(mbFreeBytes, mbTotalBytes));
+			ResList res;
+			res << "本地时间:" + printSTime(stNow)
+				<< "内存占用:" + to_string(getRamPort()) + "%"
+				<< "CPU占用:" + toString(getWinCpuUsage() / 10.0) + "%"
+				<< "硬盘占用:" + toString(milDisk / 10.0) + "%(空余:" + toString(mbFreeBytes) + "GB/ " + toString(mbTotalBytes) + "GB)"
+				<< "运行时长:" + printDuringTime((clock() - llStartTime) / 1000)
+				<< "启动后指令量:" + to_string(FrqMonitor::sumFrqTotal);
+			reply(res.show());
 			return 1;
 		}
 		else if (strOption == "clrimg") {
 			if (Mirai) {
-				reply("Mirai不支持此功能");
+				reply("Mirai不支持此功能!");
 				return -1;
 			}
 			if (trusted < 5) {
 				reply(GlobalMsg["strNotMaster"]);
 				return -1;
 			}
-			int Cnt = clearImage();
-			note("已清理image文件" + to_string(Cnt) + "项", 0b1);
+			cmd_key = "clrimage";
+			sch.push_job(this);
 			return 1;
 		}
 		else if (strOption == "reload") {
@@ -993,7 +981,7 @@ int FromMsg::DiceReply() {
 				return -1;
 			}
 			cmd_key = "reload";
-			sch.push_job(*this);
+			sch.push_job(this);
 			return 1;
 		}
 		else if (strOption == "die") {
@@ -1002,7 +990,7 @@ int FromMsg::DiceReply() {
 				return -1;
 			}
 			cmd_key = "die";
-			sch.push_job(*this);
+			sch.push_job(this);
 			return 1;
 		}
 		else if (strOption == "rexplorer") {
@@ -1044,7 +1032,7 @@ int FromMsg::DiceReply() {
 			}
 			else if (strVar["ver"] == "dev" || strVar["ver"] == "release") {
 				cmd_key = "update";
-				sch.push_job(*this);
+				sch.push_job(this);
 			}
 			return 1;
 		}

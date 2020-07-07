@@ -87,11 +87,9 @@ public:
 	std::string show() {
 		std::string s;
 		if (intMaxLen > intLineLen || isLineBreak) {
-			for (auto it : vRes) {
-				for (auto it = vRes.begin(); it != vRes.end(); it++) {
-					if (it == vRes.begin())s = "\n" + *it;
-					else s += strLongSepa + *it;
-				}
+			for (auto it = vRes.begin(); it != vRes.end(); it++) {
+				if (it == vRes.begin())s = "\n" + *it;
+				else s += strLongSepa + *it;
 			}
 		}
 		else {

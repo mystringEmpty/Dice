@@ -1,10 +1,12 @@
 #include <string>
+#include <string_view>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "StrExtern.hpp"
 
 using std::string;
 using std::wstring;
+using std::string_view;
 using std::to_string;
 
 #define CP_GB18030 54936
@@ -18,6 +20,12 @@ string toString(int num, unsigned short size) {
     }
     while (res.length() < size)res = "0" + res;
     return sign + res;
+}
+string toString(double num) {
+    string strNum{ to_string(num) };
+    size_t last(strNum.find_last_not_of('0'));
+    if (strNum[last] == '.')last--;
+    return strNum.substr(0, last + 1);
 }
 
 int count_char(string s, char ch) {
@@ -44,4 +52,26 @@ wstring convert_a2w(const char* ch) {
     std::wstring wstr(m_char);
     delete[] m_char;
     return wstr;
+}
+
+string printDuringTime(long long seconds) {
+    if (seconds < 0) {
+        return "N/A";
+    }
+    else if (seconds < 60) {
+        return std::to_string(seconds) + "秒";
+    }
+    int mins = seconds / 60;
+    seconds = seconds % 60;
+    if (mins < 60) {
+        return std::to_string(mins) + "分" + std::to_string(seconds) + "秒";
+    }
+    int hours = mins / 60;
+    mins = mins % 60;
+    if (hours < 24) {
+        return std::to_string(hours) + "小时" + std::to_string(mins) + "分" + std::to_string(seconds) + "秒";
+    }
+    int days = hours / 24;
+    hours = hours % 24;
+    return std::to_string(days) + "天" + std::to_string(hours) + "小时" + std::to_string(mins) + "分" + std::to_string(seconds) + "秒";
 }

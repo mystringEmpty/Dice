@@ -5,6 +5,7 @@
 #pragma once
 #include <map>
 #include <ctime>
+#include <atomic>
 #include "DiceConsole.h"
 #include "ManagerSystem.h"
 #include "DiceCloud.h"
@@ -18,10 +19,14 @@ public:
 	static std::map<long long, int>mFrequence;
 	static std::map<long long, int>mWarnLevel;
 	static std::map<long long, int>mDailyFrq;
+	static std::atomic<unsigned int> sumFrqTotal;
+	static std::atomic<unsigned int> sumFrqToday;
 	static int getFrqTotal();
 	long long fromQQ = 0;
 	time_t fromTime = 0;
+	void addFrq() { sumFrqToday++; sumFrqTotal++; }
 	FrqMonitor(long long QQ,time_t TT,chatType CT): fromQQ(QQ),fromTime(TT){
+		addFrq();
 		if (mFrequence.count(fromQQ)) {
 			mFrequence[fromQQ] += 10;
 			if (!console["ListenSpam"] || trustedQQ(fromQQ) > 1 )return;

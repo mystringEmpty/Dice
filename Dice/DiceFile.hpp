@@ -32,7 +32,7 @@ using std::unordered_map;
 
 int mkDir(const std::string& dir);
 
-int clrDir(std::string dir, const std::set<std::string>& exceptList);
+int clrDir(std::string dir, const unordered_set<std::string>& exceptList);
 
 template<typename TKey, typename TVal, typename sort>
 void map_merge(map<TKey, TVal, sort>& m1, const map<TKey, TVal, sort>& m2) {
