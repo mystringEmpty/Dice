@@ -1,8 +1,14 @@
 #pragma once
 #include "DiceJob.h"
-#include "CQAPI_EX.h"
-#include "DiceFile.hpp"
+#include "DiceConsole.h"
+#include <TlHelp32.h>
+#include <Psapi.h>
+#include "StrExtern.hpp"
+#include "ManagerSystem.h"
+#include "DiceCloud.h"
 #include "BlackListManager.h"
+#pragma warning(disable:28159)
+
 using namespace std;
 using namespace CQ;
 
@@ -97,7 +103,7 @@ void auto_save(DiceJob& job) {
 	console.log(GlobalMsg["strSelfName"] + "已自动保存", 0, printSTNow());
 	if (console["AutoSaveInterval"] > 0) {
 		sch.refresh_cold("autosave", time(NULL) + console["AutoSaveInterval"]);
-		sch.add_job_for(console["AutoSaveInterval"] * 60, &DiceJobDetail("autosave"));
+		sch.add_job_for(console["AutoSaveInterval"] * 60, "autosave");
 	}
 }
 
@@ -149,10 +155,10 @@ void check_system(DiceJob& job) {
 		}
 	}
 	if (isAlarmRAM || isAlarmCPU || isAlarmDisk) {
-		sch.add_job_for(5 * 60, &job);
+		sch.add_job_for(5 * 60, job);
 	}
 	else {
-		sch.add_job_for(30 * 60, &job);
+		sch.add_job_for(30 * 60, job);
 	}
 }
 
@@ -161,7 +167,7 @@ void clear_image(DiceJob& job) {
 	if (!job.fromQQ) {
 		if (sch.is_job_cold("clrimage"))return;
 		if (console["AutoClearImage"] <= 0) {
-			sch.add_job_for(60 * 60, &job);
+			sch.add_job_for(60 * 60, job);
 			return;
 		}
 	}
@@ -179,7 +185,7 @@ void clear_image(DiceJob& job) {
 	job.note("已清理image文件"+ to_string(cnt) + "项", 1);
 	if (console["AutoClearImage"] > 0) {
 		sch.refresh_cold("clrimage", time(NULL) + console["AutoClearImage"]);
-		sch.add_job_for(console["AutoClearImage"] * 60 * 60, &DiceJobDetail("clrimage"));
+		sch.add_job_for(console["AutoClearImage"] * 60 * 60, "clrimage");
 	}
 }
 
@@ -281,7 +287,7 @@ void clear_group(DiceJob& job) {
 //心跳检测
 void cloud_beat(DiceJob& job) {
 	Cloud::update();
-	sch.add_job_for(5 * 60, &job);
+	sch.add_job_for(5 * 60, job);
 }
 
 void dice_update(DiceJob& job) {
@@ -302,4 +308,15 @@ void dice_update(DiceJob& job) {
 	case 0:
 		job.note("更新Dice!" + job.strVar["ver"] + "版成功√\n可用.system reload 重启应用更新", 1);
 	}
+}
+
+string print_master() {
+	return printQQ(console.master());
+}
+
+string list_deck() {
+	return listKey(CardDeck::mPublicDeck);
+}
+string list_extern_deck() {
+	return listKey(CardDeck::mExternPublicDeck);
 }

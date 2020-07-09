@@ -2,6 +2,7 @@
 #include <condition_variable>
 #include <deque>
 #include "DiceJob.h" 
+#include "ManagerSystem.h"
 
 unordered_map<string, cmd> mCommand = {
 	{"syscheck",check_system},
@@ -74,7 +75,7 @@ void jobWait() {
 	while (Enabled) {
 		//检查定时作业
 		if (std::unique_lock<std::mutex> lock_queue(mtJobWaited); !queueJobWaited.empty() && queueJobWaited.top().first <= time(NULL)) {
-			sch.push_job(&queueJobWaited.top().second);
+			sch.push_job(queueJobWaited.top().second);
 			queueJobWaited.pop();
 		}
 		else {
@@ -83,27 +84,43 @@ void jobWait() {
 	}
 }
 //将任务加入执行队列
-void DiceScheduler::push_job(const DiceJobDetail* job) {
+void DiceScheduler::push_job(const DiceJobDetail& job) {
 	if (!Enabled)return;
-	std::unique_lock<std::mutex> lock_queue(mtQueueJob);
-	queueJob.push(*job);
-	lock_queue.unlock();
+	{
+		std::unique_lock<std::mutex> lock_queue(mtQueueJob);
+		queueJob.push(job); 
+	}
+	cvJob.notify_one();
+}
+void DiceScheduler::push_job(const char* job_name) {
+	if (!Enabled)return; 
+	{
+		std::unique_lock<std::mutex> lock_queue(mtQueueJob);
+		queueJob.emplace(job_name);
+	}
 	cvJob.notify_one();
 }
 //将任务加入等待队列
-void DiceScheduler::add_job_for(unsigned int waited, const DiceJobDetail* job) {
+void DiceScheduler::add_job_for(unsigned int waited, const DiceJobDetail& job) {
 	if (!Enabled)return;
 	std::unique_lock<std::mutex> lock_queue(mtJobWaited);
-	queueJobWaited.emplace(time(NULL) + waited, *job);
-	lock_queue.unlock();
-	cvJob.notify_one();
+	queueJobWaited.emplace(time(NULL) + waited, job);
 }
-void DiceScheduler::add_job_until(time_t cloc, const DiceJobDetail* job) {
+void DiceScheduler::add_job_for(unsigned int waited, const char* job_name) {
 	if (!Enabled)return;
 	std::unique_lock<std::mutex> lock_queue(mtJobWaited);
-	queueJobWaited.emplace(cloc, *job);
-	lock_queue.unlock();
-	cvJob.notify_one();
+	queueJobWaited.emplace(time(NULL) + waited, job_name);
+}
+
+void DiceScheduler::add_job_until(time_t cloc, const DiceJobDetail& job) {
+	if (!Enabled)return;
+	std::unique_lock<std::mutex> lock_queue(mtJobWaited);
+	queueJobWaited.emplace(cloc, job);
+}
+void DiceScheduler::add_job_until(time_t cloc, const char* job_name) {
+	if (!Enabled)return;
+	std::unique_lock<std::mutex> lock_queue(mtJobWaited);
+	queueJobWaited.emplace(cloc, job_name);
 }
 std::unique_ptr<std::thread> threadJobs;
 
@@ -119,11 +136,11 @@ void DiceScheduler::start() {
 	threadJobs->detach();
 	std::thread thWaited(jobWait);
 	thWaited.detach();
-	push_job(&DiceJobDetail("heartbeat"));
-	push_job(&DiceJobDetail("syscheck"));
-	if (console["AutoSaveInterval"] > 0)add_job_for(console["AutoSaveInterval"] * 60, &DiceJobDetail("autosave"));
-	if (console["AutoClearImage"] > 0)add_job_for(console["AutoClearImage"] * 60 * 60, &DiceJobDetail("clrimage"));
-	else add_job_for(60 * 60, &DiceJobDetail("clrimage"));
+	push_job("heartbeat");
+	push_job("syscheck");
+	if (console["AutoSaveInterval"] > 0)add_job_for(console["AutoSaveInterval"] * 60, "autosave");
+	if (console["AutoClearImage"] > 0)add_job_for(console["AutoClearImage"] * 60 * 60, "clrimage");
+	else add_job_for(60 * 60, "clrimage");
 }
 void DiceScheduler::end() {
 	threadJobs.reset();

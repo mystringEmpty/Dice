@@ -5,26 +5,30 @@
  */
 #pragma once
 #include <string>
-#include "DiceMsgSend.h"
+#include <map>
+#include "DiceConsole.h"
+using std::string;
+using std::map;
 
 struct DiceJobDetail {
     long long fromQQ = 0;
     chatType fromChat;
-    const char* cmd_key;
-    std::string strMsg;
+    string cmd_key;
+    string strMsg;
     time_t fromTime = time(NULL);
     //¡Ÿ ±±‰¡øø‚
     map<string, string> strVar = {};
-    DiceJobDetail(const char* cmd):cmd_key(cmd){}
+    DiceJobDetail(const char* cmd):cmd_key(cmd){
+        fromQQ = console.DiceMaid;
+    }
     DiceJobDetail(long long qq, chatType ct, std::string msg = "", const char* cmd = "") 
         :fromQQ(qq), fromChat(ct), strMsg(msg),cmd_key(cmd) {
-
     }
     string operator[](const char* key){
         return strVar[key];
     }
     bool operator<(const DiceJobDetail& other)const {
-        return strcmp(cmd_key, other.cmd_key) < 0;
+        return cmd_key < other.cmd_key;
     }
 };
 
@@ -44,9 +48,12 @@ class DiceScheduler {
 public:
     void start();
     void end();
-    void push_job(const DiceJobDetail*);
-    void add_job_for(unsigned int, const DiceJobDetail*);
-    void add_job_until(time_t, const DiceJobDetail*);
+    void push_job(const DiceJobDetail&);
+    void push_job(const char*);
+    void add_job_for(unsigned int, const DiceJobDetail&);
+    void add_job_for(unsigned int, const char*);
+    void add_job_until(time_t, const DiceJobDetail&);
+    void add_job_until(time_t, const char*);
     bool is_job_cold(const char*);
     void refresh_cold(const char*, time_t);
 };

@@ -968,7 +968,7 @@ int FromMsg::DiceReply() {
 				return -1;
 			}
 			cmd_key = "clrimage";
-			sch.push_job(this);
+			sch.push_job(*this);
 			return 1;
 		}
 		else if (strOption == "reload") {
@@ -981,7 +981,7 @@ int FromMsg::DiceReply() {
 				return -1;
 			}
 			cmd_key = "reload";
-			sch.push_job(this);
+			sch.push_job(*this);
 			return 1;
 		}
 		else if (strOption == "die") {
@@ -990,7 +990,7 @@ int FromMsg::DiceReply() {
 				return -1;
 			}
 			cmd_key = "die";
-			sch.push_job(this);
+			sch.push_job(*this);
 			return 1;
 		}
 		else if (strOption == "rexplorer") {
@@ -1032,7 +1032,7 @@ int FromMsg::DiceReply() {
 			}
 			else if (strVar["ver"] == "dev" || strVar["ver"] == "release") {
 				cmd_key = "update";
-				sch.push_job(this);
+				sch.push_job(*this);
 			}
 			return 1;
 		}
