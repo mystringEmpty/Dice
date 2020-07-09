@@ -27,6 +27,11 @@
 #include <map>
 #include <vector>
 using std::string;
+
+extern std::map<string, string> GlobalChar;
+typedef string(*GobalTex)();
+extern std::map<string, GobalTex> strFuncs;
+
 std::string format(std::string str, const std::initializer_list<const std::string>& replace_str);
 template<typename sort>
 std::string format(std::string s, const std::map<std::string, std::string, sort>& replace_str, std::map<std::string, std::string> str_tmp = {}) {
@@ -41,25 +46,31 @@ std::string format(std::string s, const std::map<std::string, std::string, sort>
 		}
 	}
 	int l = 0, r = 0;
-	int len = s.length();
 	while ((l = s.find('{', r)) != string::npos && (r = s.find('}', l)) != string::npos) {
+		//左括号前加‘\’表示该括号内容不转义
 		if (l - 1 >= 0 && s[l - 1] == 0x5c) {
 			s.replace(l - 1, 1, "");
 			continue;
 		}
 		string key = s.substr(l + 1, r - l - 1);
+		string val;
 		auto it = replace_str.find(key);
 		if (it != replace_str.end()) {
-			s.replace(l, r - l + 1, format(it->second, replace_str, str_tmp));
-			r += s.length() - len + 1;
-			len = s.length();
+			val = format(it->second, replace_str, str_tmp);
+		}
+		else if ((it = GlobalChar.find(key)) != GlobalChar.end()) {
+			val = it->second;
 		}
 		else if ((it = str_tmp.find(key)) != str_tmp.end()) {
-			if (key == "res")s.replace(l, r - l + 1, format(it->second, replace_str, str_tmp));
-			else s.replace(l, r - l + 1, it->second);
-			r += s.length() - len + 1;
-			len = s.length();
+			if (key == "res")val = format(it->second, replace_str, str_tmp);
+			else val = it->second;
 		}
+		else if (auto func = strFuncs.find(key); func != strFuncs.end()) {
+			val = func->second();
+		}
+		else continue;
+		s.replace(l, r - l + 1, val);
+		r = l + val.length();
 	}
 	return s;
 }

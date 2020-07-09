@@ -78,9 +78,6 @@ void loadData() {
 		loadJMap(strFileLoc + "ExternDeck.json", CardDeck::mExternPublicDeck);
 	}
 	map_merge(CardDeck::mPublicDeck, CardDeck::mExternPublicDeck);
-	fmt->set_help("扩展牌堆",listKey(CardDeck::mExternPublicDeck));
-	fmt->set_help("全牌堆列表",listKey(CardDeck::mPublicDeck));
-	fmt->set_help("master",printQQ(console.master()));
 	//读取帮助文档
 	fmt->load(strLog);
 	if (int cnt = 0; (cnt = loadJMap(DiceDir + "\\conf\\CustomHelp.json", CustomHelp)) < 0) {
@@ -229,7 +226,8 @@ EVE_Enable(eventEnable)
 			long long GroupID = 0, QQ = 0;
 			string name;
 			while (ifName >> GroupID >> QQ >> name){
-				getUser(QQ).create(NEWYEAR).setNick(GroupID, base64_decode(name));
+				name = base64_decode(name);
+				getUser(QQ).create(NEWYEAR).setNick(GroupID, name);
 			}
 		}
 	}
