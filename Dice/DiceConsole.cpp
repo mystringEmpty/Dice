@@ -210,8 +210,7 @@ std::string printSTime(SYSTEMTIME st){
 	string printQQ(long long llqq) {
 		string nick = getStrangerInfo(llqq).nick;
 		if (nick.empty())nick = getFriendList()[llqq].nick;
-		while (nick.find(" ") != string::npos)nick.erase(nick.begin() + nick.find(" "), nick.begin() + nick.find(" ") + strlen(" "));
-		while (nick.find(" ") != string::npos)nick.erase(nick.begin() + nick.find(" "), nick.begin() + nick.find(" ") + strlen(" "));
+		if(nick.empty())return "用户(" + to_string(llqq) + ")";
 		return nick + "(" + to_string(llqq) + ")";
 	}
 	//打印QQ群号
