@@ -108,10 +108,11 @@ void auto_save(DiceJob& job) {
 }
 
 void check_system(DiceJob& job) {
-	static double perLastRAM(0), perLastCPU(0), perLastDisk(0),
-		perRAM(0), perCPU(0), perDisk(0);
+	static int perRAM(0), perLastRAM(0);
+	static double  perLastCPU(0), perLastDisk(0),
+		 perCPU(0), perDisk(0);
 	static bool isAlarmRAM(false), isAlarmCPU(false), isAlarmDisk(false);
-	double mbFreeBytes = 0, mbTotalBytes = 0;
+	static double mbFreeBytes = 0, mbTotalBytes = 0;
 	//ÄÚ´æ¼ì²â
 	if (console["SystemAlarmRAM"] > 0) {
 		perRAM = getRamPort();

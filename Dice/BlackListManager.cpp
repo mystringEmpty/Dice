@@ -26,7 +26,7 @@ using Factory = DDBlackMarkFactory;
 //判断信任
 int isReliable(long long QQID) {
     if (!QQID)return 0;
-    if (QQID == console.master())return 5;
+    if (QQID == console.master())return 255;
     if (trustedQQ(QQID) > 2)return trustedQQ(QQID) - 1;
     if (mDiceList.count(QQID)) {
         if (trustedQQ(mDiceList[QQID]) > 2)return trustedQQ(mDiceList[QQID]) - 1;
@@ -108,7 +108,7 @@ void warningHandler() {
                 else {
                     blacklist->verify(&j, warning.fromQQ);
                 }
-                std::this_thread::sleep_for(100ms);
+                std::this_thread::sleep_for(500ms);
             }
             catch (...) {
                 console.log("warning解析失败×", 0);
@@ -308,12 +308,11 @@ bool DDBlackMark::isSame(const DDBlackMark& other)const {
 bool DDBlackMark::isSource(long long qq)const {
     return DiceMaid == qq || masterQQ == qq;
 }
-bool DDBlackMark::is_remit()const {
-    if (fromGroup.first && groupset(fromGroup.first, "免黑") > 0)return true;
-    if (fromQQ.first && trustedQQ(fromQQ.first) > 1)return true;
-    if (inviterQQ.first && trustedQQ(inviterQQ.first) > 1)return true;
-    if (ownerQQ.first && trustedQQ(ownerQQ.first) > 1)return true;
-    return false;
+void DDBlackMark::check_remit(){
+    if (fromGroup.first && groupset(fromGroup.first, "免黑") > 0)erase();
+    if (fromQQ.first && trustedQQ(fromQQ.first) > 1)erase();
+    if (inviterQQ.first && trustedQQ(inviterQQ.first) > 1)inviterQQ.second = 0;
+    if (ownerQQ.first && trustedQQ(ownerQQ.first) > 1)ownerQQ.second = 0;
 }
 void DDBlackMark::erase() {
     fromGroup.second = fromQQ.second = inviterQQ.second = ownerQQ.second = false;
@@ -335,10 +334,15 @@ int DDBlackMark::check_cloud() {
         console.log("云记录访问失败" + temp, 0);
         return -2;
     }
-    if (temp[0] == '+') {
-        console.log("匹配到未注销云记录:wid" + temp, 0);
+    if (temp[0] == '?') {
+        console.log("匹配到未确认云记录:wid" + temp, 0);
         wid = stoi(temp.substr(1));
         return 1;
+    }
+    else if (temp[0] == '+') {
+        console.log("匹配到未注销云记录:wid" + temp, 0);
+        wid = stoi(temp.substr(1));
+        return 2;
     }
     else if (temp[0] == '-') {
         console.log("匹配到已注销云记录:wid" + temp, 0);
@@ -358,7 +362,7 @@ int DDBlackManager::find(const DDBlackMark& mark) {
         if (mCloud.count(mark.wid)) return mCloud[mark.wid];
         sRange = sIDEmpty;
     }
-    if (mark.time.length()==19) {
+    if (mark.time.length() == 19) {
         unordered_set<unsigned int> sTimeRange = sTimeEmpty;
         for (auto &[key,id] : multi_range(mTimeIndex, mark.time)) {
             sTimeRange.insert(id);
@@ -861,7 +865,7 @@ void DDBlackManager::verify(void* pJson, long long operateQQ) {
     DDBlackMark mark{ pJson };
     if (!mark.isValid)return;
     int credit = isReliable(operateQQ);
-    //数据库是否有记录:-1=不存在;0=已注销;1=未注销;
+    //数据库是否有记录:-1=不存在;0=已注销;1=未确认;2=已确认;
     int is_cloud = -1;
     if (console["CloudBlackShare"]) {
         if (mark.wid) {
@@ -870,6 +874,7 @@ void DDBlackManager::verify(void* pJson, long long operateQQ) {
                 try {
                     nlohmann::json j = nlohmann::json::parse(strInfo);
                     if (j["isErased"].get<int>())is_cloud = 0;
+                    else if (j["isCheck"].get<int>())is_cloud = 2;
                     if (mark.fromQQ.first) {
                         if (mark.fromQQ.first != j["fromQQ"].get<long long>())return;
                     }
@@ -917,60 +922,64 @@ void DDBlackManager::verify(void* pJson, long long operateQQ) {
         }
     }
     else if (credit < 5 && mark.danger > credit) mark.danger = credit;
-    if (!mark.danger)mark.danger = 2;
-    if (mark.is_remit())mark.erase();
+    if (!mark.danger || credit < 3)mark.danger = (mark.type == "ruler" ? 3 : 2);
+    mark.check_remit();
     int index = find(mark);
     //新记录
     if (index < 0) {
+        //发送者或当事人任一有黑名单
+        if (credit < 0 || get_qq_danger(mark.DiceMaid) || get_qq_danger(mark.masterQQ))return;
         if (!mark.isType())return;
-        if (credit < 0)return;
-        if (is_cloud < 0) {
+        //无云端确认记录且不受信任
+        if (is_cloud < 0 || is_cloud == 1) {
             if (mark.type == "ruler" || credit == 0)return;
         }
+        //云端注销，则同步注销
         else if(is_cloud == 0){
             if (!mark.isClear && credit < 3)mark.erase();
         }
         if (credit < 3) {
             if (is_cloud < 1 && mark.type == "extern")return;
-            if (mark.type != "ruler") {
-                if (mark.danger > 2)mark.danger = 2;
-            }
-            else {
-                if (mark.danger > 3)mark.danger = 3;
-            }
         }
         else {
             if (mark.type == "local" && credit < 4)return;
         }
-        if (get_qq_danger(mark.DiceMaid) || get_qq_danger(mark.masterQQ))return;
-        if (mark.fromGroup.first && groupset(mark.fromGroup.first, "忽略") > 0)return;
+        if (mark.fromGroup.first && (groupset(mark.fromGroup.first, "忽略") > 0 || groupset(mark.fromGroup.first, "协议无效") > 0 || ExceptGroups.count(mark.fromGroup.first)))return;
         insert(mark);
         console.log(getName(operateQQ) + "已通知" + GlobalMsg["strSelfName"] + "不良记录" + to_string(vBlackList.size() - 1) + ":\n!warning" + UTF8toGBK(((json*)pJson)->dump()), 1, printSTNow());
     }
     else {  //已有记录
         DDBlackMark& old_mark = vBlackList[index];
         bool isSource = operateQQ == old_mark.DiceMaid || operateQQ == old_mark.masterQQ;
-        if (credit < 1) {
+        //低于危险等级无权修改
+        if (old_mark.danger > credit && credit < 255) {
             if (old_mark.danger != 2)return;
-            if (is_cloud < 0 && !isSource)return;
-            if (is_cloud  && (old_mark.isClear || mark.isClear))return;
+            //当事人权利
+            if (isSource) {
+                mark.fromQQ.second &= old_mark.fromQQ.second;
+                mark.fromGroup.second &= old_mark.fromGroup.second;
+            }
+            //同步云端注销
+            else if (!is_cloud) {
+                mark.erase();
+            }
+            else return;
+        }
+        //无信任
+        if (credit < 1) {
             mark.inviterQQ = { 0,false };
             mark.ownerQQ = { 0,false };
         }
-        else if (credit < 3) {
-            if (old_mark.danger > 2)return;
-            if (mark.danger > 2)mark.danger = 2;
-        }
-        if (mark.danger != old_mark.danger) {
-            if (credit < 3)return;
-            else if (credit < 5 && credit < old_mark.danger)return;
+        //无权调整危险等级
+        if (mark.danger != old_mark.danger && credit < 3) { 
+            mark.danger = old_mark.danger; 
         }
         if(update(mark,index,credit))console.log(getName(operateQQ) + "已更新" + GlobalMsg["strSelfName"] + "不良记录" + to_string(index) + ":\n!warning" + UTF8toGBK(((json*)pJson)->dump()), 1, printSTNow());
     }
 }
 
 void DDBlackManager::create(DDBlackMark& mark) {
-    if (mark.is_remit())return;
+    if (mark.check_remit();mark.isClear)return;
     if (console["CloudBlackShare"] && mark.isSource(console.DiceMaid))mark.upload();
     console.log(mark.warning(), 0b100000);
     insert(mark);

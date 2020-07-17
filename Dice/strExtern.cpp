@@ -21,12 +21,6 @@ string toString(int num, unsigned short size) {
     while (res.length() < size)res = "0" + res;
     return sign + res;
 }
-string toString(double num) {
-    string strNum{ to_string(num) };
-    size_t last(strNum.find_last_not_of('0'));
-    if (strNum[last] == '.')last--;
-    return strNum.substr(0, last + 1);
-}
 
 int count_char(string s, char ch) {
     int cnt = 0;

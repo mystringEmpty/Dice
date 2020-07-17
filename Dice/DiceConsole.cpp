@@ -170,7 +170,8 @@ void Console::saveNotice() {
 Console console;
 
 //DiceModManager modules{};
-
+//除外群列表
+std::set<long long> ExceptGroups;
 //骰娘列表
 std::map<long long, long long> mDiceList;
 
@@ -216,8 +217,9 @@ std::string printSTime(SYSTEMTIME st){
 	//打印QQ群号
 	string printGroup(long long llgroup) {
 		if (!llgroup)return"私聊";
-		if (getGroupList().count(llgroup))return getGroupList()[llgroup] + "(" + to_string(llgroup) + ")";
-		return "群聊(" + to_string(llgroup) + ")";
+		if (ChatList.count(llgroup))return printChat(ChatList[llgroup]);
+		if (getGroupList().count(llgroup))return "[" + getGroupList()[llgroup] + "](" + to_string(llgroup) + ")";
+		return "群(" + to_string(llgroup) + ")";
 	}
 	//打印聊天窗口
 	string printChat(chatType ct) {
@@ -237,12 +239,14 @@ std::string printSTime(SYSTEMTIME st){
 //获取骰娘列表
 void getDiceList() {
 	std::string list;
-	if (!Network::GET("shiki.stringempty.xyz", "/DiceList/", 80, list) && mDiceList.empty())
-	{
-		console.log("获取骰娘列表时遇到错误: \n" + list, 1, printSTNow());
-		return;
-	}
-	readJson(list, mDiceList);
+	if (Network::GET("shiki.stringempty.xyz", "/DiceList/", 80, list))
+		readJson(list, mDiceList);
+}
+//获取骰娘列表
+void getExceptGroup() {
+	std::string list;
+	if (Network::GET("shiki.stringempty.xyz", "/DiceCloud/except_group.json", 80, list))
+		json::parse(list, nullptr, false).get_to(ExceptGroups);
 }
 
 

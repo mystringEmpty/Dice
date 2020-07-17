@@ -68,7 +68,7 @@ public:
     bool isType(string strType)const;
     bool isSame(const DDBlackMark&)const;
     bool isSource(long long)const;
-    bool is_remit()const;
+    void check_remit();
     DDBlackMark& operator<<(const DDBlackMark&);
     //bool operator<(const DDBlackMark&)const;
 };
@@ -138,6 +138,10 @@ public:
     }
     Factory& note(string strNote) {
         mark.note = strNote;
+        return *this;
+    }
+    Factory& comment(string strNote) {
+        mark.comment = strNote;
         return *this;
     }
     Factory& inviterQQ(long long qq) {

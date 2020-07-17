@@ -586,7 +586,7 @@ int FromMsg::DiceReply() {
 		}
 		if (pGrp->isset("许可使用") && !pGrp->isset("未审核"))return 0;
 		if (trusted > 0) {
-			pGrp->set("许可使用").reset("未审核");
+			pGrp->set("许可使用").reset("未审核").reset("协议无效");
 			note("已授权" + printGroup(pGrp->ID) + "许可使用", 1);
 			AddMsgToQueue(getMsg("strGroupAuthorized", strVar), pGrp->ID, msgtype::Group);
 		}
@@ -601,6 +601,7 @@ int FromMsg::DiceReply() {
 	}
 	else if (strLowerMessage.substr(intMsgCnt, 7) == "dismiss")
 	{
+		intMsgCnt += 7;
 		if (!intT) {
 			string QQNum = readDigit();
 			if (QQNum.empty()) {
@@ -615,29 +616,30 @@ int FromMsg::DiceReply() {
 			Chat& grp = chat(llGroup);
 			if (grp.isset("已退") || grp.isset("未进")) {
 				reply(GlobalMsg["strGroupAway"]);
-				return 1;
 			}
-			if (trustedQQ(fromQQ) > 2 || getGroupMemberInfo(llGroup, fromQQ).permissions > 1) {
-				grp.leave(GlobalMsg["strDismiss"]);
+			if (trustedQQ(fromQQ) > 2) {
+				grp.leave(GlobalMsg["strAdminDismiss"]);
 				reply(GlobalMsg["strGroupExit"]);
-				return 1;
+			}
+			else if(getGroupMemberInfo(llGroup, fromQQ).permissions > 1){
+				reply(GlobalMsg["strDismiss"]);
 			}
 			else {
 				reply(GlobalMsg["strPermissionDeniedErr"]);
-				return 1;
 			}
+			return 1;
 		}
-		intMsgCnt += 7;
-		while (isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])))
-			intMsgCnt++;
 		string QQNum = readDigit();
 		if (QQNum.empty() || QQNum == to_string(console.DiceMaid) || (QQNum.length() == 4 && stoll(QQNum) == getLoginQQ() % 10000)){
+			if (trusted > 2) {
+				pGrp->leave(GlobalMsg["strAdminDismiss"]);
+			}
+			if (pGrp->isset("协议无效"))return 0;
 			if (!isAuth && trusted < 3) {
-				if (pGrp->isset("停用指令") && GroupInfo(fromGroup).nGroupSize > 200)AddMsgToQueue(getMsg("strPermissionDeniedErr", strVar), fromQQ);
+				if ((!isCalled || pGrp->isset("停用指令")) && GroupInfo(fromGroup).nGroupSize > 200)AddMsgToQueue(getMsg("strPermissionDeniedErr", strVar), fromQQ);
 				else reply(GlobalMsg["strPermissionDeniedErr"]);
 				return -1;
 			}
-			chat(fromGroup).leave(GlobalMsg["strDismiss"]);
 		}
 		return 1;
 	}
@@ -692,7 +694,10 @@ int FromMsg::DiceReply() {
 		}
 		return 1;
 	}
-	if (blacklist->get_qq_danger(fromQQ) || (intT != PrivateT && blacklist->get_group_danger(fromGroup))) {
+	else if (intT != PrivateT && pGrp->isset("协议无效")) {
+		return 0;
+	}
+	else if (blacklist->get_qq_danger(fromQQ) || (intT != PrivateT && blacklist->get_group_danger(fromGroup))) {
 		return 0;
 	}
 	if (strLowerMessage.substr(intMsgCnt, 3) == "bot")
@@ -1159,6 +1164,7 @@ int FromMsg::DiceReply() {
 			const int intTMonth = 30 * 24 * 60 * 60;
 			set<string> sInact;
 			set<string> sBlackQQ;
+			int cntUser(0);
 			if (isInGroup)
 				for (auto each : getGroupMemberList(llGroup)) {
 					if (!each.LastMsgTime || tNow - each.LastMsgTime > intTMonth) {
@@ -1167,6 +1173,7 @@ int FromMsg::DiceReply() {
 					if (blacklist->get_qq_danger(each.QQID)) {
 						sBlackQQ.insert(each.GroupNick + "(" + to_string(each.QQID) + ")");
 					}
+					if (UserList.count(each.QQID))cntUser++;
 				}
 			ResList res;
 			strVar["group"] = grpinfo.llGroup ? grpinfo.tostring() : printGroup(llGroup);
@@ -1179,7 +1186,8 @@ int FromMsg::DiceReply() {
 			res << "最后记录：" + printDate(grp.tUpdated);
 			if (grp.inviter)res << "邀请者：" + printQQ(grp.inviter);
 			if (isInGroup) {
-				res << string("入群欢迎：") + (grp.isset("入群欢迎") ? "已设置" : "未设置");
+				res << string("入群欢迎：") + (grp.isset("入群欢迎") ? "已设置" : "未设置")
+					<< "用户占比：" + to_string(cntUser * 100 / (grpinfo.nGroupSize - 1)) + "%";
 				res << (sInact.size() ? "\n30天不活跃群员数：" + to_string(sInact.size()) : "");
 				if (sBlackQQ.size()) {
 					if (sBlackQQ.size() > 8)
@@ -3586,8 +3594,10 @@ bool FromMsg::DiceFilter() {
 	trusted = trustedQQ(fromQQ);
 	isBotOff = (console["DisabledGlobal"] && (trusted < 4 || !isCalled)) || (!(isCalled && console["DisabledListenAt"]) && (groupset(fromGroup, "停用指令") > 0));
 	if (DiceReply()) {
-		AddFrq(fromQQ, fromTime, fromChat);
-		if (isAns)getUser(fromQQ).update(fromTime);
+		if (isAns) {
+			AddFrq(fromQQ, fromTime, fromChat);
+			getUser(fromQQ).update(fromTime);
+		}
 		if (fromChat.second != msgtype::Private)chat(fromGroup).update(fromTime);
 		return 1;
 	}

@@ -147,10 +147,7 @@ public:
 	set<string> boolConf{};
 	map<string, int> intConf{};
 	map<string, string> strConf{};
-	Chat& id(long long grp) {
-		ID = grp;
-		return *this;
-	}
+	Chat& id(long long grp);
 	Chat& group() {
 		isGroup = true;
 		return *this;

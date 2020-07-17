@@ -25,6 +25,7 @@ const map<string, short> mChatConf{//0-Èº¹ÜÀíÔ±£¬2-°×Ãûµ¥2¼¶£¬3-°×Ãûµ¥3¼¶£¬4-¹ÜÀ
 	{"Î´ÉóºË",1},
 	{"ÃâÇå",2},
 	{"ÃâºÚ",4},
+	{"Ğ­ÒéÎŞĞ§",4},
 	{"Î´½ø",5},
 	{"ÒÑÍË",5}
 };
@@ -103,15 +104,28 @@ Chat& chat(long long id) {
 	if (!ChatList.count(id))ChatList[id].id(id);
 	return ChatList[id];
 }
+Chat& Chat::id(long long grp) {
+	ID = grp;
+	if (CQ::getGroupList().count(grp)) {
+		CQ::GroupInfo ginfo(grp);
+		Name = ginfo.strGroupName;
+		isGroup = true;
+		if (ExceptGroups.count(grp) || ginfo.nGroupSize > 499) {
+			boolConf.insert("Ğ­ÒéÎŞĞ§");
+		}
+	}
+	return *this;
+}
 int groupset(long long id, string st) {
 	if (!ChatList.count(id))return -1;
 	else return ChatList[id].isset(st);
 }
 string printChat(Chat& grp) {
-	if (CQ::getGroupList().count(grp.ID))return CQ::getGroupList()[grp.ID] + "(" + to_string(grp.ID) + ")";
-	if (grp.isset("ÈºÃû"))return grp.strConf["ÈºÃû"] + "(" + to_string(grp.ID) + ")";
-	if (grp.isGroup) return "Èº" + to_string(grp.ID) + "";
-	return "ÌÖÂÛ×é" + to_string(grp.ID) + "";
+	if (CQ::getGroupList().count(grp.ID))return "[" + CQ::getGroupList()[grp.ID] + "](" + to_string(grp.ID) + ")";
+	if (!grp.Name.empty())return "[" + grp.Name + "](" + to_string(grp.ID) + ")";
+	if (grp.isset("ÈºÃû"))return "[" + grp.strConf["ÈºÃû"] + "](" + to_string(grp.ID) + ")";
+	if (grp.isGroup) return "Èº(" + to_string(grp.ID) + ")";
+	return "ÌÖÂÛ×é(" + to_string(grp.ID) + ")";
 }
 
 void scanImage(string s, unordered_set<string>& list) {

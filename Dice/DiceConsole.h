@@ -126,6 +126,9 @@ private:
 };
 	extern Console console;
 	//extern DiceModManager modules;
+
+extern std::set<long long> ExceptGroups;
+void getExceptGroup();
 	//骰娘列表
 	extern std::map<long long, long long> mDiceList;
 	//获取骰娘列表

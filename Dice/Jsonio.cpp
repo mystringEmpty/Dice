@@ -18,18 +18,18 @@ nlohmann::json freadJson(std::string strPath) {
 
 nlohmann::json freadJson(const std::filesystem::path& path) {
    	std::ifstream fin(convert_w2a(path.wstring().c_str()));
-	if (!fin)return nlohmann::json();
+	if (!fin)return {};
 	nlohmann::json j;
 	try {
 		fin >> j;
 	}
 	catch (...) {
-		return nlohmann::json();
+		return {};
 	}
 	return j;
 }
 
 void fwriteJson(std::string strPath, const json& j) {
 	std::ofstream fout(strPath);
-	fout << j.dump(2);
+	fout << std::setw(2) << j;
 }

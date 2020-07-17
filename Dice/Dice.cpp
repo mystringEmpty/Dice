@@ -385,6 +385,7 @@ EVE_Enable(eventEnable)
 	sch.start();
 	//骰娘网络
 	getDiceList();
+	getExceptGroup();
 	console.log(GlobalMsg["strSelfName"] + "初始化完成，用时" + to_string((clock() - llStartTime) / 1000) + "秒", 0b1, printSTNow());
 	llStartTime = clock();
 	return 0;
@@ -398,12 +399,17 @@ bool eve_GroupAdd(Chat& grp) {
 		else if (time(NULL) - grp.tCreated > 1)return 0;
 		lock_queue.unlock();
 	}
+	GroupInfo ginf(grp.ID);
+	grp.Name = ginf.strGroupName;
+	if (grp.boolConf.empty() && ginf.nGroupSize > 499) {
+		grp.set("协议无效");
+	}
 	if (!console["ListenGroupAdd"] || grp.isset("忽略"))return 0;
 	long long fromGroup = grp.ID;
 	string strNow = printSTNow();
 	string strMsg(GlobalMsg["strSelfName"]);
 	try {
-		strMsg += "新加入" + GroupInfo(fromGroup).tostring();
+		strMsg += "新加入:" + ginf.tostring();
 		if (blacklist->get_group_danger(fromGroup)) {
 			grp.leave(blacklist->list_group_warning(fromGroup));
 			strMsg += "为黑名单群，已退群";
@@ -411,11 +417,13 @@ bool eve_GroupAdd(Chat& grp) {
 			return 1;
 		}
 		if (grp.isset("使用许可"))strMsg += "（已获使用许可）";
+		else if(grp.isset("协议无效"))strMsg += "（默认协议无效）";
 		if (grp.inviter) {
 			strMsg += ",邀请者" + printQQ(chat(fromGroup).inviter);
 		}
 		console.log(strMsg, 0, strNow);
 		int max_trust = 0;
+		float ave_trust(0);
 		//int max_danger = 0;
 		long long ownerQQ = 0;
 		ResList blacks;
@@ -424,8 +432,14 @@ bool eve_GroupAdd(Chat& grp) {
 			strMsg += "，群员名单未加载；";
 		}
 		else {
+			int cntUser(0), cntMember(0);
 			for (auto& each : list) {
 				if (each.QQID == console.DiceMaid)continue;
+				cntMember++;
+				if (UserList.count(each.QQID)) {
+					cntUser++;
+					ave_trust += getUser(each.QQID).nTrust;
+				}
 				if (each.permissions > 1) {
 					max_trust |= (1 << trustedQQ(each.QQID));
 					if (blacklist->get_qq_danger(each.QQID) > 1) {
@@ -443,7 +457,11 @@ bool eve_GroupAdd(Chat& grp) {
 					}
 					if (each.permissions == 3) {
 						ownerQQ = each.QQID;
+						ave_trust += ginf.nGroupSize * trustedQQ(each.QQID);
 						strMsg += "，群主" + printQQ(each.QQID) + "；";
+					}
+					else {
+						ave_trust += ginf.nGroupSize * trustedQQ(each.QQID) / 10;
 					}
 				}
 				else if (blacklist->get_qq_danger(each.QQID) > 1) {
@@ -458,6 +476,13 @@ bool eve_GroupAdd(Chat& grp) {
 				chat(fromGroup).inviter = ownerQQ;
 				strMsg += "邀请者" + printQQ(ownerQQ);
 			}
+			if (!cntMember) {
+				strMsg += "，群员名单未加载；";
+			}
+			else {
+				ave_trust /= cntMember;
+				strMsg += "\n用户浓度" + to_string(cntUser * 100 / cntMember) + "%, 信任度" + toString(ave_trust);
+			}
 		}
 		if (!blacks.empty()) {
 			string strNote = "发现黑名单群员" + blacks.show();
@@ -465,12 +490,12 @@ bool eve_GroupAdd(Chat& grp) {
 		}
 		if (console["Private"] && !grp.isset("许可使用"))
 		{	//避免小群绕过邀请没加上白名单
-			if (max_trust > 1) {
+			if (max_trust > 1 || ave_trust > 0.5) {
 				grp.set("许可使用");
-				strMsg += "已自动追加使用许可";
+				strMsg += "\n已自动追加使用许可";
 			}
 			else {
-				strMsg += "无许可使用，已退群";
+				strMsg += "\n无许可使用，已退群";
 				console.log(strMsg, 1, strNow);
 				grp.leave(getMsg("strPreserve"));
 				return 1;
@@ -483,6 +508,7 @@ bool eve_GroupAdd(Chat& grp) {
 		console.log(strMsg + "\n群" + to_string(fromGroup) + "信息获取失败！", 0b1, printSTNow());
 		return 1;
 	}
+	if (grp.isset("协议无效"))return 0;
 	if (!GlobalMsg["strAddGroup"].empty()) {
 		this_thread::sleep_for(2s);
 		AddMsgToQueue(getMsg("strAddGroup"), { fromGroup, msgtype::Group });
@@ -490,7 +516,7 @@ bool eve_GroupAdd(Chat& grp) {
 	if (console["CheckGroupLicense"] && !grp.isset("许可使用")) {
 		grp.set("未审核");
 		this_thread::sleep_for(2s);
-		AddMsgToQueue(getMsg("strAddGroupNoLicense"), { fromGroup, msgtype::Group });
+		AddMsgToQueue(getMsg("strGroupLicenseDeny"), { fromGroup, msgtype::Group });
 	}
 	return 0;
 }
@@ -608,13 +634,13 @@ EVE_System_GroupMemberDecrease(eventGroupMemberDecrease) {
 	Chat& grp = chat(fromGroup);
 	if (beingOperateQQ == console.DiceMaid) {
 		grp.set("已退");
-		if (!console || trustedQQ(fromQQ) > 1 || grp.isset("忽略"))return 0;
+		if (!console || grp.isset("忽略"))return 0;
 		string strNow = printSTime(stNow);
-		string strNote = printQQ(fromQQ) + "将" + printQQ(beingOperateQQ) + "移出了群" + to_string(fromGroup);
+		string strNote = printQQ(fromQQ) + "将" + printQQ(beingOperateQQ) + "移出了" + printChat(grp);
 		console.log(strNote, 0b1000, strNow);
-		if (!console["ListenGroupKick"] || trustedQQ(fromQQ) > 1 || grp.isset("免黑"))return 0;
+		if (!console["ListenGroupKick"] || trustedQQ(fromQQ) > 1 || grp.isset("免黑") || grp.isset("协议无效") || ExceptGroups.count(fromGroup))return 0;
 		DDBlackMarkFactory mark{ fromQQ ,fromGroup };
-		mark.sign().type("kick").time(strNow).note(strNow + " " + strNote);
+		mark.sign().type("kick").time(strNow).note(strNow + " " + strNote).comment(getMsg("strSelfCall") + "原生记录");
 		if (grp.inviter && trustedQQ(grp.inviter) < 2) {
 			strNote += ";入群邀请者：" + printQQ(grp.inviter);
 			if (console["KickedBanInviter"])mark.inviterQQ(grp.inviter).note(strNow + " " + strNote);
@@ -625,11 +651,11 @@ EVE_System_GroupMemberDecrease(eventGroupMemberDecrease) {
 	else if (mDiceList.count(beingOperateQQ) && subType == 2 && console["ListenGroupKick"]) {
 		if (!console || grp.isset("忽略"))return 0;
 		string strNow = printSTime(stNow);
-		string strNote = printQQ(fromQQ) + "将" + printQQ(beingOperateQQ) + "移出了群" + to_string(fromGroup);
+		string strNote = printQQ(fromQQ) + "将" + printQQ(beingOperateQQ) + "移出了" + printChat(grp);
 		console.log(strNote, 0b1000, strNow);
-		if (trustedQQ(fromQQ) > 1 || grp.isset("免黑"))return 0;
+		if (trustedQQ(fromQQ) > 1 || grp.isset("免黑") || grp.isset("协议无效") || ExceptGroups.count(fromGroup))return 0;
 		DDBlackMarkFactory mark{ fromQQ ,fromGroup };
-		mark.type("kick").time(strNow).note(strNow + " " + strNote).DiceMaid(beingOperateQQ).masterQQ(mDiceList[beingOperateQQ]);
+		mark.type("kick").time(strNow).note(strNow + " " + strNote).DiceMaid(beingOperateQQ).masterQQ(mDiceList[beingOperateQQ]).comment(strNow + " " + printQQ(console.DiceMaid) + "目击");
 		grp.reset("许可使用").reset("免清");
 		blacklist->create(mark.product());
 	}
@@ -638,7 +664,7 @@ EVE_System_GroupMemberDecrease(eventGroupMemberDecrease) {
 
 EVE_System_GroupBan(eventGroupBan) {
 	Chat& grp = chat(fromGroup);
-	if (grp.isset("忽略") || (beingOperateQQ != console.DiceMaid && !mDiceList.count(beingOperateQQ)) || !console["ListenGroupBan"])return 0;
+	if (grp.isset("忽略") || (beingOperateQQ != console.DiceMaid && !mDiceList.count(beingOperateQQ)))return 0;
 	if (subType == 1) {
 		if (beingOperateQQ == console.DiceMaid) {
 			console.log(GlobalMsg["strSelfName"] + "在" + printGroup(fromGroup) + "中被解除禁言",0b10, printSTNow());
@@ -649,7 +675,7 @@ EVE_System_GroupBan(eventGroupBan) {
 		string strNow = printSTNow();
 		long long llOwner = 0;
 		string strNote = "在" + printGroup(fromGroup) + "中," + printQQ(beingOperateQQ) + "被" + printQQ(fromQQ) + "禁言" + printDuringTime(duration);
-		if (trustedQQ(fromQQ) > 1 || grp.isset("免黑")){
+		if (!console["ListenGroupBan"] || trustedQQ(fromQQ) > 1 || grp.isset("免黑") || grp.isset("协议无效") || ExceptGroups.count(fromGroup)) {
 			console.log(strNote, 0b10, strNow);
 			return 1;
 		}
@@ -658,10 +684,10 @@ EVE_System_GroupBan(eventGroupBan) {
 		if (mDiceList.count(fromQQ))mark.fromQQ(0);
 		if (beingOperateQQ == console.DiceMaid) {
 			if (!console)return 0;
-			mark.sign();
+			mark.sign().comment(getMsg("strSelfCall") + "原生记录");
 		}
 		else {
-			mark.DiceMaid(beingOperateQQ).masterQQ(mDiceList[beingOperateQQ]);
+			mark.DiceMaid(beingOperateQQ).masterQQ(mDiceList[beingOperateQQ]).comment(strNow + " " + printQQ(console.DiceMaid) + "目击");
 		}
 		//统计群内管理
 		int intAuthCnt = 0;
@@ -696,7 +722,7 @@ EVE_Request_AddGroup(eventGroupInvited) {
 	if (subType == 2 && groupset(fromGroup, "忽略") < 1) {
 		this_thread::sleep_for(3s);
 		string strNow = printSTNow();
-		string strMsg = "群添加请求，来自：" + getStrangerInfo(fromQQ).nick + "(" + to_string(fromQQ) + "),群:" + to_string(fromGroup) + "。";
+		string strMsg = "群添加请求，来自：" + printQQ(fromQQ) + ",群:" + to_string(fromGroup) + "。";
 		if (blacklist->get_group_danger(fromGroup)) {
 			strMsg += "\n已拒绝（群在黑名单中）";
 			console.log(strMsg, 0b10, strNow);
@@ -708,9 +734,9 @@ EVE_Request_AddGroup(eventGroupInvited) {
 			setGroupAddRequest(responseFlag, 2, 2, "");
 		}
 		else if (Chat& grp = chat(fromGroup).group(); grp.isset("许可使用")) {
-			grp.set("许可使用").set("未进");
+			grp.set("未进");
 			grp.inviter = fromQQ;
-			strMsg += "\n已同意（群已许可使用）" + grp.listBoolConf();
+			strMsg += "\n已同意（群已许可使用）";
 			console.log(strMsg, 1, strNow);
 			setGroupAddRequest(responseFlag, 2, 1, "");
 		}
