@@ -127,7 +127,7 @@ void dataInit() {
 		console.log("初始化旁观与先攻记录" + to_string(gm->mSession.size()) + "条", 1);
 		gm->save();
 	}
-	
+	today = make_unique<DiceToday>(DiceDir + "/user/DiceToday.json");
 }
 //备份数据
 void dataBackUp() {

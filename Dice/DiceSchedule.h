@@ -18,8 +18,8 @@ struct DiceJobDetail {
     time_t fromTime = time(NULL);
     //临时变量库
     map<string, string> strVar = {};
-    DiceJobDetail(const char* cmd):cmd_key(cmd){
-        fromQQ = console.DiceMaid;
+    DiceJobDetail(const char* cmd, bool isFromSelf = false):cmd_key(cmd){
+        if(isFromSelf)fromQQ = console.DiceMaid;
     }
     DiceJobDetail(long long qq, chatType ct, std::string msg = "", const char* cmd = "") 
         :fromQQ(qq), fromChat(ct), strMsg(msg),cmd_key(cmd) {
@@ -60,3 +60,24 @@ public:
 inline DiceScheduler sch;
 
 typedef void (*cmd)(DiceJob&);
+
+//今日记录
+class DiceToday {
+    SYSTEMTIME stToday;
+    string pathFile;
+    unordered_map<string, int>cntGlobal;
+    unordered_map<long long, unordered_map<string, int>>cntUser;
+public:
+    DiceToday(const string& path) :pathFile(path) {
+        load();
+    }
+    void load();
+    void save();
+    void inc(const string& key) { cntGlobal[key]++; save(); }
+    void inc(long long qq, const string& key, int cnt = 1) { cntUser[qq][key] += cnt; save(); }
+    int& get(const string& key) { return cntGlobal[key]; }
+    int& get(long long qq, const string& key) { return cntUser[qq][key]; }
+    size_t cnt(const string& key = "") { return cntUser.size(); }
+    void daily_clear();
+};
+inline std::unique_ptr<DiceToday> today;

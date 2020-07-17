@@ -3,6 +3,7 @@
 #include <deque>
 #include "DiceJob.h" 
 #include "ManagerSystem.h"
+#include "Jsonio.h"
 
 unordered_map<string, cmd> mCommand = {
 	{"syscheck",check_system},
@@ -81,6 +82,7 @@ void jobWait() {
 		else {
 			cvJobWaited.wait_for(lock_queue, 1s);
 		}
+		today->daily_clear();
 	}
 }
 //将任务加入执行队列
@@ -146,4 +148,32 @@ void DiceScheduler::end() {
 	threadJobs.reset();
 }
 
+void DiceToday::daily_clear() {
+	GetLocalTime(&stNow);
+	if (stToday.wDay != stNow.wDay) {
+		stToday = stNow;
+		cntGlobal.clear();
+	}
+}
 
+void DiceToday::save() {
+	json jFile;
+	jFile["date"] = { stToday.wYear,stToday.wMonth,stToday.wDay };
+	jFile["global"] = cntGlobal;
+	jFile["user_cnt"] = cntUser;
+	fwriteJson(pathFile, jFile);
+}
+void DiceToday::load() {
+	json jFile = freadJson(pathFile);
+	if (jFile.is_null()) {
+		GetLocalTime(&stToday);
+		return;
+	}
+	if (jFile.count("date")) {
+		jFile["date"][0].get_to(stToday.wYear);
+		jFile["date"][1].get_to(stToday.wMonth);
+		jFile["date"][2].get_to(stToday.wDay);
+	}
+	if (jFile.count("global")) { jFile["global"].get_to(cntGlobal); }
+	if (jFile.count("user_cnt")) { jFile["user_cnt"].get_to(cntUser); }
+}

@@ -47,7 +47,8 @@ int FromMsg::AdminEvent(string strOption) {
 			<< "群记录数：" + to_string(ChatList.size())
 			<< "好友数："+to_string(getFriendList().size())
 			<< "用户记录数：" + to_string(UserList.size())
-			<< (PList.size() ? "角色卡记录数：" + to_string(PList.size()) : "无角色卡记录")
+			<< "今日用户量：" + to_string(today->cnt())
+			<< (PList.size() ? "角色卡记录数：" + to_string(PList.size()) : "")
 			<< "黑名单用户数：" + to_string(blacklist->mQQDanger.size())
 			<< "黑名单群数：" + to_string(blacklist->mGroupDanger.size());
 		reply(GlobalMsg["strSelfName"] + "的当前情况" + res.show());
@@ -954,6 +955,7 @@ int FromMsg::DiceReply() {
 				<< "CPU占用:" + toString(getWinCpuUsage() / 10.0) + "%"
 				<< "硬盘占用:" + toString(milDisk / 10.0) + "%(空余:" + toString(mbFreeBytes) + "GB/ " + toString(mbTotalBytes) + "GB)"
 				<< "运行时长:" + printDuringTime((clock() - llStartTime) / 1000)
+				<< "今日指令量:" + to_string(today->get("frq"))
 				<< "启动后指令量:" + to_string(FrqMonitor::sumFrqTotal);
 			reply(res.show());
 			return 1;

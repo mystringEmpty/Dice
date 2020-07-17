@@ -6,9 +6,9 @@
 #include <queue>
 #include <mutex>
 #include "MsgMonitor.h"
+#include "DiceSchedule.h"
 
 std::atomic<unsigned int> FrqMonitor::sumFrqTotal = 0;
-std::atomic<unsigned int> FrqMonitor::sumFrqToday = 0;
 std::map<long long, int> FrqMonitor::mFrequence = {};
 std::map<long long, int> FrqMonitor::mWarnLevel = {};
 
@@ -25,6 +25,9 @@ void AddFrq(long long QQ, time_t TT, chatType CT)
 	setFrq.insert(QQ);
 	FrqMonitor *newFrq = new FrqMonitor(QQ, TT, CT);
 	EarlyMsgQueue.push(newFrq);
+	FrqMonitor::sumFrqTotal++;
+	today->inc("frq");
+	today->inc(QQ, "frq");
 }
 void frqHandler() {
 	while (Enabled)

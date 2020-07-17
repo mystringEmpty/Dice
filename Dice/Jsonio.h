@@ -7,6 +7,8 @@
 #include "json.hpp"
 #include "EncodingConvert.h" 
 
+using nlohmann::json;
+
 class JsonList {
 	std::vector<std::string> vRes;
 public:
@@ -44,6 +46,7 @@ typename std::enable_if_t<std::is_arithmetic_v<T>, T> readJKey(std::string strJs
 
 nlohmann::json freadJson(std::string strPath);
 nlohmann::json freadJson(const std::filesystem::path& path);
+void fwriteJson(std::string strPath, const json& j);
 
 template<typename T1, typename T2, class sort>
 int readJMap(const nlohmann::json& j, std::map<T1, T2, sort>& mapTmp) {
@@ -71,22 +74,15 @@ int readJson(const std::string& strJson, std::map<T1, T2> &mapTmp) {
 
 template<typename T1, typename T2, typename sort>
 int loadJMap(const std::string& strLoc, std::map<T1, T2, sort> &mapTmp) {
-	std::ifstream fin(strLoc);
-	if (fin) {
-		try {
-			nlohmann::json j;
-			fin >> j;
-			fin.close();
-			return readJMap(j, mapTmp);
-		}
-		catch (...) {
-			fin.close();
-			return -1;
-		}
+	nlohmann::json j = freadJson(strLoc);
+	if (j.is_null())return -2;
+	try {
+		return readJMap(j, mapTmp);
 	}
-	return -2;
+	catch (...) {
+		return -1;
+	}
 }
-
 template<typename T>
 std::string writeJKey(typename std::enable_if_t<!std::is_arithmetic_v<T>, T> strJson) {
 	return GBKtoUTF8(strJson);
