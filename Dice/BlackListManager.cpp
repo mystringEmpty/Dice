@@ -354,7 +354,11 @@ int DDBlackManager::find(const DDBlackMark& mark) {
     std::lock_guard<std::mutex> lock_queue(blacklistMutex);
     unordered_set<unsigned int> sRange;
     if (mark.wid && mCloud.count(mark.wid)) return mCloud[mark.wid];
-    if (!mark.time.empty()) {
+    if (mark.wid){
+        if (mCloud.count(mark.wid)) return mCloud[mark.wid];
+        sRange = sIDEmpty;
+    }
+    if (mark.time.length()==19) {
         unordered_set<unsigned int> sTimeRange = sTimeEmpty;
         for (auto &[key,id] : multi_range(mTimeIndex, mark.time)) {
             sTimeRange.insert(id);
@@ -472,8 +476,8 @@ void DDBlackManager::insert(DDBlackMark& ex_mark) {
     DDBlackMark& mark(vBlackList[id]);
     if (mark.wid)mCloud[mark.wid] = id;
     else sIDEmpty.insert(id);
-    if (mark.time.empty())sTimeEmpty.insert(id);
-    else mTimeIndex.emplace(mark.time, id);
+    if (mark.time.length() == 19)mTimeIndex.emplace(mark.time, id);
+    else sTimeEmpty.insert(id);
     if (mark.fromGroup.first) {
         mGroupIndex.emplace(mark.fromGroup.first, id);
         if (mark.fromGroup.second) {
@@ -522,10 +526,10 @@ bool DDBlackManager::update(DDBlackMark& mark, unsigned int id, int credit = 5) 
         isUpdated = true;
     }
     if (old_mark.type == "null" && mark.type != "null")old_mark.type = mark.type;
-    if (old_mark.time.length() < mark.time.length()) {
+    if (old_mark.time.length() < mark.time.length() && mark.time.length() <= 19) {
         old_mark.time = mark.time;
         sTimeEmpty.erase(id);
-        mTimeIndex.emplace(old_mark.time, id);
+        if (mark.time.length() == 19)mTimeIndex.emplace(old_mark.time, id);
     }
     if (old_mark.note != mark.note &&
         (old_mark.note.empty() || count_char(old_mark.note, '?') > count_char(mark.note, '?') || old_mark.note.length() < mark.note.length())
@@ -907,7 +911,7 @@ void DDBlackManager::verify(void* pJson, long long operateQQ) {
     }
     if (credit < 3) {
         if ((mark.isType("kick") && !console["ListenGroupKick"]) || (mark.isType("ban") && !console["ListenGroupBan"]) || (mark.isType("spam") && !console["ListenSpam"]))return;
-        if (mark.type == "local" || mark.type == "other") {
+        if (mark.type == "local" || mark.type == "other" || mark.isSource(console.DiceMaid)) {
             if (credit > 0)console.log(getName(operateQQ) + "已通知" + GlobalMsg["strSelfName"] + "不良记录(未采用):\n!warning" + UTF8toGBK(((json*)pJson)->dump()), 1, printSTNow());
             return;
         }
