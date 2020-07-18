@@ -635,11 +635,14 @@ int FromMsg::DiceReply() {
 				pGrp->leave(GlobalMsg["strAdminDismiss"]);
 			}
 			if (pGrp->isset("协议无效"))return 0;
-			if (!isAuth && trusted < 3) {
-				if ((!isCalled || pGrp->isset("停用指令")) && GroupInfo(fromGroup).nGroupSize > 200)AddMsgToQueue(getMsg("strPermissionDeniedErr", strVar), fromQQ);
-				else reply(GlobalMsg["strPermissionDeniedErr"]);
-				return -1;
+			if (isAuth) {
+				pGrp->leave(GlobalMsg["strDismiss"]);
 			}
+			else {
+				if (!isCalled && (pGrp->isset("停用指令") || GroupInfo(fromGroup).nGroupSize > 200))AddMsgToQueue(getMsg("strPermissionDeniedErr", strVar), fromQQ);
+				else reply(GlobalMsg["strPermissionDeniedErr"]);
+			}
+			return 1;
 		}
 		return 1;
 	}
@@ -2493,10 +2496,10 @@ int FromMsg::DiceReply() {
 				reply(GlobalMsg["strPcTempInvalid"]);
 				break;
 			case -4:
-				reply(GlobalMsg["strPCNameExist"]);
+				reply(GlobalMsg["strPcNameExist"]);
 				break;
 			case -6:
-				reply(GlobalMsg["strPCNameInvalid"]);
+				reply(GlobalMsg["strPcNameInvalid"]);
 				break;
 			default:
 				reply(GlobalMsg["strUnknownErr"]);
@@ -2615,6 +2618,8 @@ int FromMsg::DiceReply() {
 			reply(GlobalMsg["strPcClr"]);
 			return 1;
 		}
+		reply(fmt->get_help("pc"));
+		return 1;
 	}
 	else if (strLowerMessage.substr(intMsgCnt, 2) == "ra" || strLowerMessage.substr(intMsgCnt, 2) == "rc")
 	{
