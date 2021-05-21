@@ -32,6 +32,7 @@ namespace CardDeck
 			}
 		},
 		{"天干", {"甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"}},
+		{"地支", {"子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"}},
 		{
 			"first_name_cn",
 			{
@@ -358,6 +359,21 @@ namespace CardDeck
 			}
 		},
 		{"硬币", {"正", "反"}},
+		{ "扑克牌",
+			{
+			"红桃A","红桃2","红桃3","红桃4","红桃5","红桃6","红桃7","红桃8","红桃9","红桃10","红桃J","红桃Q","红桃K",
+			"黑桃A","黑桃2","黑桃3","黑桃4","黑桃5","黑桃6","黑桃7","黑桃8","黑桃9","黑桃10","黑桃J","黑桃Q","黑桃K",
+			"方片A","方片2","方片3","方片4","方片5","方片6","方片7","方片8","方片9","方片10","方片J","方片Q","方片K",
+			"梅花A","梅花2","梅花3","梅花4","梅花5","梅花6","梅花7","梅花8","梅花9","梅花10","梅花J","梅花Q","梅花K",
+			"小王","大王"}
+		},
+		{ "麻将牌",
+			{
+			"::4::一万","::4::二万","::4::三万","::4::四万","::4::五万","::4::六万","::4::七万","::4::八万","::4::九万",
+			"::4::一筒","::4::二筒","::4::三筒","::4::四筒","::4::五筒","::4::六筒","::4::七筒","::4::八筒","::4::九筒",
+			"::4::一条","::4::二条","::4::三条","::4::四条","::4::五条","::4::六条","::4::七条","::4::八条","::4::九条",
+			"::4::东风","::4::南风","::4::西风","::4::北风","::4::中","::4::发","::4::白"} 
+		},
 		{"性别", {"男", "女"}},
 		{
 			"人偶暗示",
@@ -1014,14 +1030,6 @@ namespace CardDeck
 	std::map<std::string, std::vector<std::string>, less_ci> mReplyDeck = {
 		{".dissmiss", {"diss!diss!diss!会英语吗在那diss本骰娘？那叫!dismiss!"}}
 	};
-	//群聊牌堆
-	std::map<long long, std::vector<std::string>> mGroupDeck;
-	//群聊临时牌堆
-	std::map<long long, std::vector<std::string>> mGroupDeckTmp;
-	//私人牌堆
-	std::map<long long, std::vector<std::string>> mPrivateDeck;
-	//私人临时牌堆
-	std::map<long long, std::vector<std::string>> mPrivateDeckTmp;
 	std::map<std::string, std::string> PublicComplexDeck{
 		//{"调查员背景","个人描述：{个人描述}\n思想信念：{思想信念}\n重要之人：{重要之人}\n重要之人理由：{重要之人理由}\n意义非凡之地：{意义非凡之地}\n宝贵之物：{宝贵之物}\n特点：{调查员特点}"}
 	};
@@ -1096,9 +1104,7 @@ namespace CardDeck
 				sortedIndex.push_back(sortedIndex[sortedIndex.size() - 1] + cnt);
 			}
 		}
-
-
-		
+				
 		std::string strReply;
 		if (TempDeck.empty())return "";
 		if (TempDeck.size() == 1)
@@ -1146,6 +1152,11 @@ namespace CardDeck
 		int lq = 0, rq = 0;
 		while ((lq = strExp.find('{', intCnt)) != std::string::npos && (rq = strExp.find('}', lq)) != std::string::npos)
 		{
+			if (lq > 0 && strExp[lq - 1] == '\\') {
+				strExp.erase(strExp.begin() + lq - 1); 
+				intCnt = rq;
+				continue;
+			}
 			bool isTmpBack = false;
 			string strTempName = strExp.substr(lq + 1, rq - lq - 1);
 			if (strTempName[0] == '%')
@@ -1169,6 +1180,11 @@ namespace CardDeck
 		intCnt = 0;
 		while ((lq = strExp.find('[', intCnt)) != std::string::npos && (rq = strExp.find(']', lq)) != std::string::npos)
 		{
+			if (lq > 0 && strExp[lq - 1] == '\\') {
+				strExp.erase(strExp.begin() + lq - 1);
+				intCnt = rq;
+				continue;
+			}
 			string strRoll = strExp.substr(lq + 1, rq - lq - 1);
 			intCnt = rq + 1;
 			RD RDroll(strRoll);

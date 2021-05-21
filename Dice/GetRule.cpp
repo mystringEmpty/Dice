@@ -20,18 +20,12 @@
  * You should have received a copy of the GNU Affero General Public License along with this
  * program. If not, see <http://www.gnu.org/licenses/>.
  */
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-#ifdef _MSC_VER
-#pragma comment(lib, "Wininet.lib")
-#endif /*_MSC_VER*/
-
 #include <string>
+#include <cstring>
+#include "DDAPI.h"
 #include "GetRule.h"
 #include "GlobalVar.h"
 #include "EncodingConvert.h"
-#include "CQAPI_EX.h"
 #include "DiceNetwork.h"
 
 
@@ -73,13 +67,17 @@ namespace GetRule
 		const string ruleName = GBKtoUTF8(rule);
 		const string itemName = GBKtoUTF8(name);
 
-		string data = "Name=" + UrlEncode(itemName) + "&QQ=" + to_string(CQ::getLoginQQ()) + "&v=20190114";
+		string data = "Name=" + UrlEncode(itemName) + "&QQ=" + to_string(DD::getLoginQQ()) + "&v=20190114";
 		if (!ruleName.empty())
 		{
 			data += "&Type=Rules-" + UrlEncode(ruleName);
 		}
 		char* frmdata = new char[data.length() + 1];
+#ifdef _MSC_VER
 		strcpy_s(frmdata, data.length() + 1, data.c_str());
+#else
+		strcpy(frmdata, data.c_str());
+#endif
 		string temp;
 		const bool reqRes = Network::POST("api.kokona.tech", "/rules", 5555, frmdata, temp);
 		delete[] frmdata;

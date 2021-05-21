@@ -1,3 +1,5 @@
+#pragma once
+
 /*
  *  _______     ________    ________    ________    __
  * |   __  \   |__    __|  |   _____|  |   _____|  |  |
@@ -20,67 +22,34 @@
  * You should have received a copy of the GNU Affero General Public License along with this
  * program. If not, see <http://www.gnu.org/licenses/>.
  */
-#pragma once
+
 #ifndef DICE_MSG_FORMAT
 #define DICE_MSG_FORMAT
 #include <string>
 #include <map>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+#include "STLExtern.hpp"
 using std::string;
+
+extern std::map<string, string> GlobalChar;
+typedef string(*GobalTex)();
+extern std::map<string, GobalTex> strFuncs;
+
 std::string format(std::string str, const std::initializer_list<const std::string>& replace_str);
 
-template <typename sort>
-std::string format(std::string s, const std::map<std::string, std::string, sort>& replace_str,
-                   const std::map<std::string, std::string>& str_tmp = {})
-{
-	if (s[0] == '&')
-	{
-		string key = s.substr(1);
-		auto it = replace_str.find(key);
-		if (it != replace_str.end())
-		{
-			return format(it->second, replace_str, str_tmp);
-		}
-		if ((it = str_tmp.find(key)) != str_tmp.end())
-		{
-			return it->second;
-		}
-	}
-	int l = 0, r = 0;
-	int len = s.length();
-	while ((l = s.find('{', r)) != string::npos && (r = s.find('}', l)) != string::npos)
-	{
-		if (l - 1 >= 0 && s[l - 1] == 0x5c)
-		{
-			s.replace(l - 1, 1, "");
-			continue;
-		}
-		string key = s.substr(l + 1, r - l - 1);
-		auto it = replace_str.find(key);
-		if (it != replace_str.end())
-		{
-			s.replace(l, r - l + 1, format(it->second, replace_str, str_tmp));
-			r += s.length() - len + 1;
-			len = s.length();
-		}
-		else if ((it = str_tmp.find(key)) != str_tmp.end())
-		{
-			if (key == "res")s.replace(l, r - l + 1, format(it->second, replace_str, str_tmp));
-			else s.replace(l, r - l + 1, it->second);
-			r += s.length() - len + 1;
-			len = s.length();
-		}
-	}
-	return s;
-}
+std::string format(std::string s, const std::map<std::string, std::string, less_ci>& replace_str,
+				   const std::unordered_map<std::string, std::string>& str_tmp = {});
 
 class ResList
 {
 	std::vector<std::string> vRes;
 	unsigned int intMaxLen = 0;
 	bool isLineBreak = false;
-	unsigned int intLineLen = 16;
+	unsigned int intLineLen = 10;
+	static unsigned int intPageLen;
+	string sHead = "";
 	string sDot = " ";
 	string strLongSepa = "\n";
 public:
@@ -92,40 +61,14 @@ public:
 		intMaxLen = s.length();
 	}
 
-	ResList& operator<<(std::string s)
-	{
-		while (isspace(static_cast<unsigned char>(s[0])))s.erase(s.begin());
-		if (s.empty())return *this;
-		vRes.push_back(s);
-		if (s.length() > intMaxLen)intMaxLen = s.length();
+	ResList& operator<<(std::string s);
+
+	std::string show(size_t = 0)const;
+
+	ResList& head(string s) {
+		sHead = s;
 		return *this;
 	}
-
-	std::string show()
-	{
-		std::string s;
-		if (intMaxLen > intLineLen || isLineBreak)
-		{
-			for (auto it : vRes)
-			{
-				for (auto it2 = vRes.begin(); it2 != vRes.end(); ++it2)
-				{
-					if (it2 == vRes.begin())s = "\n" + *it2;
-					else s += strLongSepa + *it2;
-				}
-			}
-		}
-		else
-		{
-			for (auto it = vRes.begin(); it != vRes.end(); ++it)
-			{
-				if (it == vRes.begin())s = *it;
-				else s += sDot + *it;
-			}
-		}
-		return s;
-	}
-
 	ResList& dot(string s)
 	{
 		sDot = std::move(s);
@@ -158,6 +101,21 @@ public:
 	[[nodiscard]] size_t size() const
 	{
 		return vRes.size();
+	}
+};
+
+//按属性名输出项目
+class AttrList {
+	std::unordered_map<string, string> mItem;
+	std::vector<string> vKey;
+public:
+	string show() {
+		string res;
+		int index = 0;
+		for (auto& key : vKey) {
+			res += "\n" + key + "=" + mItem[key];
+		}
+		return res;
 	}
 };
 

@@ -7,22 +7,39 @@
 #include <string>
 
 using std::string;
-using std::wstring;
+using std::u16string;
 using std::to_string;
 
-#define CP_GB18030 (54936)
+#define CP_GBK (936)
 
 string toString(int num, unsigned short size = 0);
 
-template <typename Dig>
-string to_signed_string(Dig num)
+template<typename F>
+typename std::enable_if_t<std::is_floating_point_v<F>, string>
+toString(F num, unsigned short scale = 2, bool align = false) 
 {
-	if (num > 0)return "+" + to_string(num);
-	return to_string(num);
+    string strNum{ to_string(num) };
+    size_t dot(strNum.find('.') + scale + 1);
+    if (align)return strNum.substr(0, dot);
+    size_t last(strNum.find_last_not_of('0') + 1);
+    if (last > dot)last = dot;
+    if (strNum[last - 1] == '.')last--;
+    return strNum.substr(0, last);
+}
+
+template<typename Dig>
+string to_signed_string(Dig num) 
+{
+    if (num > 0)return "+" + to_string(num);
+    return to_string(num);
 }
 
 int count_char(const string& s, char ch);
 
-string convert_w2a(const wchar_t* wch);
+string convert_w2a(const char16_t* wch);
 
-wstring convert_a2w(const char* ch);
+u16string convert_a2w(const char* ch);
+
+string printDuringTime(long long);
+
+size_t wstrlen(const char*);

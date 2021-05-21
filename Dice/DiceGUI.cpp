@@ -1,4 +1,5 @@
 #include "DiceGUI.h"
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <cassert>
 #include <map>
@@ -14,6 +15,7 @@
 #include "GlobalVar.h"
 #include "Jsonio.h"
 #include "resource.h"
+#include "DDAPI.h"
 
 #pragma comment(lib, "comctl32.lib")
 
@@ -634,7 +636,7 @@ LRESULT DiceGUI::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 					GlobalMsg[curr] = str;
 					EditedMsg[curr] = str;
 					ListViewCustomMsg.SetItemText(str, ListViewCustomMsgCurrentActivated, 1);
-					saveJMap(DiceDir + "\\conf\\CustomMsg.json", EditedMsg);
+					saveJMap(DiceDir / "conf" / "CustomMsg.json", EditedMsg);
 				}
 				return 0;
 			case ID_MASTER_BUTTONMASTER:
@@ -668,9 +670,8 @@ LRESULT DiceGUI::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 							console.newMaster(qq);
 						}
 					}
-					else
-					{
-						MessageBoxA(nullptr, "Master模式已开启√", "Master模式切换", MB_OK | MB_ICONINFORMATION);
+					else {
+						MessageBoxA(nullptr, console["Private"] ? getMsg("strNewMasterPrivate").c_str() : getMsg("strNewMasterPublic").c_str(), "Master模式初始化", MB_OK | MB_ICONINFORMATION);
 						console.newMaster(qq);
 						console.isMasterMode = true;
 					}
@@ -727,7 +728,7 @@ LRESULT DiceGUI::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 					if (ret == -1)
 					{
-						string nickname = CQ::getStrangerInfo(qq).nick;
+						string nickname = DD::getQQNick(qq);
 						ListViewUserTrust.AddTextRow({str, nickname, trust});
 					}
 					else
@@ -1007,7 +1008,7 @@ LRESULT DiceGUI::CreateAboutPage()
 	StaticImageDiceLogo.Create(nullptr, WS_CHILD | WS_VISIBLE | SS_BITMAP | SS_REALSIZECONTROL, 0,
 	                           40, 40, 300, 300, m_hwnd);
 
-	StaticVersionInfo.Create(Dice_Full_Ver_For.c_str(), WS_CHILD | WS_VISIBLE, 0,
+	StaticVersionInfo.Create(Dice_Full_Ver_On.c_str(), WS_CHILD | WS_VISIBLE, 0,
 	                         40, 350, 300, 50, m_hwnd);
 
 	StaticAuthorInfo.Create("主要作者: 溯洄 Shiki\r\n本程序于AGPLv3协议下开源", WS_CHILD | WS_VISIBLE, 0,
@@ -1118,18 +1119,13 @@ int WINAPI GUIMain()
 	SendMessageA(progress, PBM_SETSTEP, static_cast<WPARAM>(1), 0);
 	ShowWindow(progress, SW_SHOWDEFAULT);
 
-	const std::map<long long, CQ::FriendInfo> FriendMp = CQ::getFriendList();
+	const std::set<long long> FriendMp{ DD::getFriendQQList() };
 
 	// 获取Nickname
 	for (const auto& item : UserList)
 	{
-		if (FriendMp.count(item.first))
-		{
-			nicknameMp[item.first] = FriendMp.at(item.first).nick;
-		}
-		else if (LoadStranger)
-		{
-			nicknameMp[item.first] = CQ::getStrangerInfo(item.first).nick;
+		if (FriendMp.count(item.first) || LoadStranger) {
+			nicknameMp[item.first] = DD::getQQNick(item.first);
 		}
 		SendMessageA(progress, PBM_STEPIT, 0, 0);
 		MSG msg;
@@ -1163,3 +1159,4 @@ int WINAPI GUIMain()
 
 	return 0;
 }
+#endif

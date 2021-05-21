@@ -1,3 +1,5 @@
+#pragma once
+
 /*
  *  _______     ________    ________    ________    __
  * |   __  \   |__    __|  |   _____|  |   _____|  |  |
@@ -20,14 +22,14 @@
  * You should have received a copy of the GNU Affero General Public License along with this
  * program. If not, see <http://www.gnu.org/licenses/>.
  */
-#pragma once
+
 #ifndef DICE_MSG_SEND
 #define DICE_MSG_SEND
 #include <string>
-#include "CQMsgSend.h"
 
-using chatType = std::pair<long long, CQ::msgtype>;
-std::ifstream& operator>>(std::ifstream& fin, CQ::msgtype& t);
+enum class msgtype : int { Private = 0, Group = 1, Discuss = 2 };
+using chatType = std::pair<long long, msgtype>;
+std::ifstream& operator>>(std::ifstream& fin, msgtype& t);
 std::ifstream& operator>>(std::ifstream& fin, chatType& ct);
 std::ofstream& operator<<(std::ofstream& fout, const chatType& ct);
 /*
@@ -37,7 +39,7 @@ std::ofstream& operator<<(std::ofstream& fout, const chatType& ct);
  *  long long target_id 目标ID(QQ,群号或讨论组uin)
  *  MsgType msg_type 消息类型
  */
-void AddMsgToQueue(const std::string& msg, long long target_id, CQ::msgtype msg_type = CQ::msgtype::Private);
+void AddMsgToQueue(const std::string& msg, long long target_id, msgtype msg_type = msgtype::Private);
 void AddMsgToQueue(const std::string& msg, chatType ct);
 
 /*

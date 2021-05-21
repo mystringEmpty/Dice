@@ -1,9 +1,11 @@
+#pragma once
+
 /*
  * 后台系统
  * Copyright (C) 2019-2020 String.Empty
  * 控制清理用户/群聊记录，清理图片，监控系统
  */
-#pragma once
+
 #include <set>
 #include <map>
 #include <utility>
@@ -13,6 +15,12 @@
 #include "DiceFile.hpp"
 #include "DiceConsole.h"
 #include "MsgFormat.h"
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
+
 using std::string;
 using std::to_string;
 using std::set;
@@ -21,8 +29,7 @@ using std::vector;
 using std::unordered_map;
 constexpr auto CQ_IMAGE = "[CQ:image,file=";
 constexpr auto CQ_AT = "[CQ:at,qq=";
-constexpr time_t NEWYEAR = 1588262400;
-extern string DiceDir;
+constexpr time_t NEWYEAR = 1609430400;
 
 //加载数据
 void loadData();
@@ -94,14 +101,15 @@ public:
 
 	void setConf(const string& key, int val)
 	{
+		if (key.empty())return;
 		std::lock_guard<std::mutex> lock_queue(ex_user);
 		intConf[key] = val;
 	}
 
-	void setConf(const string& key, string val)
+	void setConf(const string& key, const string& val)
 	{
 		std::lock_guard<std::mutex> lock_queue(ex_user);
-		strConf[key] = std::move(val);
+		strConf[key] = val;
 	}
 
 	void rmIntConf(const string& key)
@@ -194,11 +202,7 @@ public:
 	map<string, int> intConf{};
 	map<string, string> strConf{};
 
-	Chat& id(long long grp)
-	{
-		ID = grp;
-		return *this;
-	}
+	Chat& id(long long grp);
 
 	Chat& group()
 	{
@@ -248,23 +252,14 @@ public:
 		return *this;
 	}
 
-	void leave(const string& msg = "")
-	{
-		if (!msg.empty())
-		{
-			if (isGroup)CQ::sendGroupMsg(ID, msg);
-			else CQ::sendDiscussMsg(ID, msg);
-			Sleep(500);
-		}
-		set("已退");
-		if (isGroup)CQ::setGroupLeave(ID);
-		else CQ::setDiscussLeave(ID);
-	}
+	void leave(const string& msg = "");
 
 	[[nodiscard]] bool isset(const string& key) const
 	{
 		return boolConf.count(key) || intConf.count(key) || strConf.count(key);
 	}
+
+	bool is_except()const;
 
 	void setConf(const string& key, int val)
 	{
@@ -353,20 +348,19 @@ public:
 
 inline unordered_map<long long, Chat> ChatList;
 Chat& chat(long long id);
-int groupset(long long id, string st);
+int groupset(long long id, const string& st);
 string printChat(Chat& grp);
 ifstream& operator>>(ifstream& fin, Chat& grp);
 ofstream& operator<<(ofstream& fout, const Chat& grp);
 
-//被引用的图片列表
-extern set<string> sReferencedImage;
+extern unordered_set<std::string>sReferencedImage;
 
-void scanImage(const string& s, set<string>& list);
+void scanImage(const string& s, unordered_set<string>& list);
 
-void scanImage(const vector<string>& v, set<string>& list);
+void scanImage(const vector<string>& v, unordered_set<string>& list);
 
 template <typename TVal, typename sort>
-void scanImage(const map<string, TVal, sort>& m, set<string>& list)
+void scanImage(const map<string, TVal, sort>& m, unordered_set<string>& list)
 {
 	for (const auto& it : m)
 	{
@@ -376,7 +370,7 @@ void scanImage(const map<string, TVal, sort>& m, set<string>& list)
 }
 
 template <typename TVal>
-void scanImage(const map<string, TVal>& m, set<string>& list)
+void scanImage(const map<string, TVal>& m, unordered_set<string>& list)
 {
 	for (const auto& it : m)
 	{
@@ -386,16 +380,15 @@ void scanImage(const map<string, TVal>& m, set<string>& list)
 }
 
 template <typename TKey, typename TVal>
-void scanImage(const map<TKey, TVal>& m, set<string>& list)
+void scanImage(const map<TKey, TVal>& m, unordered_set<string>& list)
 {
-	for (const auto& it : m)
+	for (const auto& it : m) 
 	{
 		scanImage(it.second, sReferencedImage);
 	}
 }
 
-int clearImage();
-
+#ifdef _WIN32
 DWORD getRamPort();
 
 /*static DWORD getRamPort() {
@@ -410,6 +403,9 @@ DWORD getRamPort();
 __int64 compareFileTime(const FILETIME& ft1, const FILETIME& ft2);
 
 //WIN CPU使用情况
-__int64 getWinCpuUsage();
+long long getWinCpuUsage();
 
-int getProcessCpu();
+long long getProcessCpu();
+
+long long getDiskUsage(double&, double&);
+#endif

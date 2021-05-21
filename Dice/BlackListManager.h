@@ -1,9 +1,11 @@
+#pragma once
+
 /**
  * 黑名单明细
  * 更数据库式的管理
  * Copyright (C) 2019-2020 String.Empty
  */
-#pragma once
+
 #include <string>
 #include <utility>
 #include <vector>
@@ -12,6 +14,7 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <filesystem>
 
 using std::pair;
 using std::string;
@@ -70,7 +73,7 @@ public:
 	[[nodiscard]] bool isType(const string& strType) const;
 	[[nodiscard]] bool isSame(const DDBlackMark&) const;
 	[[nodiscard]] bool isSource(long long) const;
-	[[nodiscard]] bool is_remit() const;
+    void check_remit();
 	DDBlackMark& operator<<(const DDBlackMark&);
 	//bool operator<(const DDBlackMark&)const;
 };
@@ -89,7 +92,7 @@ class DDBlackManager
 	//发现所指相同的记录
 	int find(const DDBlackMark&);
 	//更新记录
-	void insert(DDBlackMark&);
+	bool insert(DDBlackMark&);
 	bool update(DDBlackMark&, unsigned int, int);
 	void reset_group_danger(long long);
 	void reset_qq_danger(long long);
@@ -116,10 +119,10 @@ public:
 	void verify(void*, long long);
 	void create(DDBlackMark&);
 	//读取json格式黑名单记录
-	int loadJson(string strPath);
+	int loadJson(const std::filesystem::path& fpPath, bool isExtern = false);
 	//读取旧版本黑名单列表
-	int loadHistory(const string& strLoc);
-	void saveJson(const string& strPath) const;
+	int loadHistory(const std::filesystem::path& fpLoc);
+	void saveJson(const std::filesystem::path& fpPath) const;
 };
 
 extern std::unique_ptr<DDBlackManager> blacklist;
@@ -149,6 +152,12 @@ public:
 	Factory& note(string strNote)
 	{
 		mark.note = std::move(strNote);
+		return *this;
+	}
+
+	Factory& comment(string strNote) 
+	{
+		mark.comment = strNote;
 		return *this;
 	}
 

@@ -18,7 +18,7 @@ int mkDir(const std::string& dir)
 	return -2;*/
 }
 
-int clrDir(const std::string& dir, const std::set<std::string>& exceptList)
+int clrDir(const std::string& dir, const std::unordered_set<std::string>& exceptList)
 {
 	int nCnt = 0;
 	std::error_code err;
@@ -26,7 +26,7 @@ int clrDir(const std::string& dir, const std::set<std::string>& exceptList)
 	{
 		if (p.is_regular_file())
 		{
-			std::string path = convert_w2a(p.path().filename().wstring().c_str());
+			std::string path = convert_w2a(p.path().filename().u16string().c_str());
 			if (path.length() >= 36 && !exceptList.count(path))
 			{
 				std::error_code err2;
@@ -102,9 +102,19 @@ bool fscan(std::ifstream& fin, std::string& t)
 	return false;
 }
 
-bool rdbuf(const string& strPath, string& s)
+[[deprecated]] bool rdbuf(const string& strPath, string& s)
 {
 	const std::ifstream fin(strPath);
+	if (!fin)return false;
+	stringstream ss;
+	ss << fin.rdbuf();
+	s = ss.str();
+	return true;
+}
+
+bool rdbuf(const std::filesystem::path& fpPath, string& s)
+{
+	const std::ifstream fin(fpPath);
 	if (!fin)return false;
 	stringstream ss;
 	ss << fin.rdbuf();
@@ -127,6 +137,31 @@ void fwrite(ofstream& fout, const std::string& s)
 	fout.write(reinterpret_cast<char*>(&len), sizeof(short));
 	fout.write(s.c_str(), sizeof(char) * s.length());
 }
+void fwrite(ofstream& fout, const var& val) {
+	short idx(-1);
+	switch (val.index()) {
+	case 0:
+		fout.write(reinterpret_cast<char*>(&idx), sizeof(short));
+		break;
+	case 1: {
+		idx = -2;
+		fout.write(reinterpret_cast<char*>(&idx), sizeof(short));
+		int i = std::get<int>(val);
+		fout.write(reinterpret_cast<char*>(&i), sizeof(int));
+		break;
+	}
+	case 2: {
+		idx = -3;
+		fout.write(reinterpret_cast<char*>(&idx), sizeof(short));
+		double f = std::get<double>(val);
+		fout.write(reinterpret_cast<char*>(&f), sizeof(double));
+		break;
+	}
+	case 3:
+		fwrite(fout, std::get<string>(val));
+		break;
+	}
+}
 
 void readini(ifstream& fin, std::string& s)
 {
@@ -141,7 +176,7 @@ void readini(ifstream& fin, std::string& s)
 
 using namespace std;
 
-std::ifstream& operator>>(std::ifstream& fin, CQ::msgtype& t)
+std::ifstream& operator>>(std::ifstream& fin, msgtype& t)
 {
 	fin >> reinterpret_cast<int&>(t);
 	return fin;
@@ -151,7 +186,7 @@ std::ifstream& operator>>(std::ifstream& fin, chatType& ct)
 {
 	int t;
 	fin >> ct.first >> t;
-	ct.second = static_cast<CQ::msgtype>(t);
+	ct.second = static_cast<msgtype>(t);
 	return fin;
 }
 
@@ -187,7 +222,7 @@ ofstream& operator<<(ofstream& fout, const Chat& grp)
 }
 
 template <typename T>
-int _listDir(const string& dir, vector<std::filesystem::path>& files)
+[[deprecated]] int _listDir(const string& dir, vector<std::filesystem::path>& files)
 {
 	int intFile = 0;
 	std::error_code err;
@@ -202,7 +237,32 @@ int _listDir(const string& dir, vector<std::filesystem::path>& files)
 	return err ? -1 : intFile;
 }
 
-int listDir(const string& dir, vector<std::filesystem::path>& files, bool isSub)
+template <typename T>
+int _listDir(const std::filesystem::path& dir, vector<std::filesystem::path>& files)
+{
+	int intFile = 0;
+	std::error_code err;
+	for (const auto& file : T(dir, err))
+	{
+		if (file.is_regular_file() && file.path().filename().string().substr(0, 1) != ".")
+		{
+			intFile++;
+			files.push_back(file.path());
+		}
+	}
+	return err ? -1 : intFile;
+}
+
+[[deprecated]] int listDir(const string& dir, vector<std::filesystem::path>& files, bool isSub)
+{
+	if (isSub)
+	{
+		return _listDir<std::filesystem::recursive_directory_iterator>(dir, files);
+	}
+	return _listDir<std::filesystem::directory_iterator>(dir, files);
+}
+
+int listDir(const std::filesystem::path& dir, vector<std::filesystem::path>& files, bool isSub)
 {
 	if (isSub)
 	{

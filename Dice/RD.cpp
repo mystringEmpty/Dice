@@ -20,14 +20,12 @@
  * You should have received a copy of the GNU Affero General Public License along with this
  * program. If not, see <http://www.gnu.org/licenses/>.
  */
-#include "CQEVE_ALL.h"
 #include "CQTools.h"
 #include <cctype>
 #include "RD.h"
 #include "RDConstant.h"
 #include "MsgFormat.h"
 using namespace std;
-using namespace CQ;
 
 void init(string& msg)
 {
@@ -47,13 +45,16 @@ void init2(string& msg)
 	}
 	if (msg[0] == '!')
 		msg[0] = '.';
+	int posFF(0);
+	while ((posFF = msg.find('\f'))!= string::npos) {
+		msg[posFF] = '\v';
+	}
 }
 
 void COC7D(string& strMAns)
 {
 	RD rd3D6("3D6");
 	RD rd2D6p6("2D6+6");
-	strMAns += "的人物作成:";
 	strMAns += '\n';
 	strMAns += "力量STR=3D6*5=";
 	rd3D6.Roll();
@@ -170,7 +171,6 @@ void COC6D(string& strMAns)
 	RD rd2D6p6("2D6+6");
 	RD rd3D6p3("3D6+3");
 	RD rd1D10("1D10");
-	strMAns += "的人物作成:";
 	strMAns += '\n';
 	strMAns += "力量STR=3D6=";
 	rd3D6.Roll();
@@ -265,7 +265,6 @@ void COC6D(string& strMAns)
 
 void COC7(string& strMAns, int intNum)
 {
-	strMAns += "的人物作成:";
 	string strProperty[] = {"力量", "体质", "体型", "敏捷", "外貌", "智力", "意志", "教育", "幸运"};
 	string strRoll[] = {"3D6", "3D6", "2D6+6", "3D6", "3D6", "2D6+6", "3D6", "2D6+6", "3D6"};
 	int intAllTotal = 0;
@@ -288,7 +287,6 @@ void COC7(string& strMAns, int intNum)
 
 void COC6(string& strMAns, int intNum)
 {
-	strMAns += "的人物作成:";
 	string strProperty[] = {"力量", "体质", "体型", "敏捷", "外貌", "智力", "意志", "教育", "资产"};
 	string strRoll[] = {"3D6", "3D6", "2D6+6", "3D6", "3D6", "2D6+6", "3D6", "3D6+3", "1D10"};
 	const bool boolAddSpace = intNum != 1;
@@ -315,7 +313,6 @@ void COC6(string& strMAns, int intNum)
 
 void DND(string& strOutput, int intNum)
 {
-	strOutput += "的英雄作成:";
 	const RD rdDND("4D6K3");
 	string strDNDName[6] = {"力量", "体质", "敏捷", "智力", "感知", "魅力"};
 	const bool boolAddSpace = intNum != 1;
@@ -448,6 +445,19 @@ int RollSuccessLevel(int res, int rate, int rule)
 		if (res <= rate)return 2;
 		if (rate >= 50 || res < 96)return 1;
 		return 0;
+		break;
+	case 6:
+		if (res > rate) {
+			if (res == 100 || res % 11 == 0) {
+				return 0;
+			}
+			return 1;
+		} else {
+			if (res == 1 || res % 11 == 0) {
+				return 5;
+			}
+			return 2;
+		}
 		break;
 	default: return -1;
 	}

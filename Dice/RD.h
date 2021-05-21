@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 #include <numeric>
+#include <map>
 #include "RDConstant.h"
 #include "RandomGenerator.h"
 
@@ -484,7 +485,10 @@ public:
 			               std::to_string(defaultDice));
 		while (strDice.find("DX") != std::string::npos)
 			strDice.insert(strDice.find("DX") + 1,
-			               std::to_string(defaultDice));
+						   std::to_string(defaultDice));
+		while (strDice.find("D/") != std::string::npos)
+			strDice.insert(strDice.find("D/") + 1,
+						   std::to_string(defaultDice));
 		while (strDice.find("DK") != std::string::npos)
 			strDice.insert(strDice.find("DK") + 1,
 			               std::to_string(defaultDice));
@@ -786,12 +790,15 @@ public:
 	std::string FormShortString() const
 	{
 		std::string strReturnString = strDice;
-		strReturnString.append("=");
-		strReturnString.append(FormStringCombined());
-		if (FormStringCombined() != std::to_string(intTotal))
+		std::string stringCombined{ FormStringCombined() };
+		if (strDice != stringCombined) {
+			strReturnString.append("=");
+			strReturnString.append(stringCombined);
+		}
+		if (std::string strTotal{ std::to_string(intTotal) };stringCombined != strTotal)
 		{
 			strReturnString.append("=");
-			strReturnString.append(std::to_string(intTotal));
+			strReturnString.append(strTotal);
 		}
 		return strReturnString;
 	}

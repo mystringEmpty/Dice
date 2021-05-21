@@ -1,3 +1,5 @@
+#pragma once
+
 /*
  * 消息处理
  * Copyright (C) 2019 String.Empty
@@ -7,93 +9,56 @@
 #include <map>
 #include <set>
 #include <utility>
-#include "CQAPI_EX.h"
+#include <string>
 #include "MsgMonitor.h"
+#include "DiceSchedule.h"
 #include "DiceMsgSend.h"
 #include "GlobalVar.h"
 
 using std::string;
 
 //打包待处理消息
-class FromMsg
-{
+class FromMsg : public DiceJobDetail {
 public:
-	std::string strMsg;
 	string strLowerMessage;
-	long long fromID = 0;
-	CQ::msgtype fromType = CQ::msgtype::Private;
-	long long fromQQ = 0;
 	long long fromGroup = 0;
+	long long fromSession;
 	Chat* pGrp = nullptr;
-	chatType fromChat;
-	time_t fromTime = time(nullptr);
 	string strReply;
-	//临时变量库
-	map<string, string> strVar = {};
-
-	FromMsg(std::string message, long long fromNum) : strMsg(std::move(message)), fromID(fromNum), fromQQ(fromNum)
-	{
-		fromChat = {fromID, CQ::msgtype::Private};
+	FromMsg(std::string message, long long qq) :DiceJobDetail(qq, { qq,msgtype::Private }, message){
+		fromSession = ~fromQQ;
 	}
-
-	FromMsg(std::string message, long long fromGroup, CQ::msgtype msgType, long long fromNum) : strMsg(std::move(message)),
-	                                                                                            fromID(fromGroup),
-	                                                                                            fromType(msgType),
-	                                                                                            fromQQ(fromNum),
-	                                                                                            fromGroup(fromGroup),
-	                                                                                            fromChat({
-		                                                                                            fromGroup,
-		                                                                                            fromType
-	                                                                                            })
-	{
+	FromMsg(std::string message, long long fromGroup, msgtype msgType, long long qq) :DiceJobDetail(qq, { fromGroup,msgType }, message), fromGroup(fromGroup), fromSession(fromGroup){
 		pGrp = &chat(fromGroup);
 	}
 
 	bool isBlock = false;
 
-	void reply(const std::string& strReply, bool isFormat)
-	{
-		isAns = true;
-		if (isFormat)
-			AddMsgToQueue(format(strReply, GlobalMsg, strVar), fromID, fromType);
-		else AddMsgToQueue(strReply, fromID, fromType);
-	}
+	void formatReply();
 
-	void reply(const std::string& strReply, const std::initializer_list<const std::string> replace_str = {},
-	           bool isFormat = true)
-	{
-		isAns = true;
-		if (!isFormat)
-		{
-			AddMsgToQueue(strReply, fromID, fromType);
-			return;
-		}
-		int index = 0;
-		for (const auto& s : replace_str)
-		{
-			strVar[to_string(index++)] = s;
-		}
-		AddMsgToQueue(format(strReply, GlobalMsg, strVar), fromID, fromType);
-	}
+	void reply(const std::string& strReply, bool isFormat = true)override;
 
-	void reply()
-	{
-		reply(strReply);
-	}
+	FromMsg& initVar(const std::initializer_list<const std::string>& replace_str);
+	void reply(const std::string& strReply, const std::initializer_list<const std::string>& replace_str);
+	void replyHidden(const std::string& strReply);
+
+	void reply(bool isFormat = true);
+
+	void replyHidden();
 
 	//通知
 	void note(std::string strMsg, int note_lv = 0b1)
 	{
 		strMsg = format(strMsg, GlobalMsg, strVar);
-		ofstream fout(string(DiceDir + "\\audit\\log") + to_string(console.DiceMaid) + "_" + printDate() + ".txt",
+		ofstream fout(DiceDir / "audit" / "log" / (to_string(console.DiceMaid) + "_" + printDate() + ".txt"),
 		              ios::out | ios::app);
 		fout << printSTNow() << "\t" << note_lv << "\t" << printLine(strMsg) << std::endl;
 		fout.close();
 		reply(strMsg);
 		const string note = getName(fromQQ) + strMsg;
-		for (const auto& [ct,level] : console.NoticeList)
+		for (const auto& [ct,level] : console.NoticeList) 
 		{
-			if (!(level & note_lv) || pair(fromQQ, CQ::msgtype::Private) == ct || ct == fromChat)continue;
+			if (!(level & note_lv) || pair(fromQQ, msgtype::Private) == ct || ct == fromChat)continue;
 			AddMsgToQueue(note, ct);
 		}
 	}
@@ -102,60 +67,49 @@ public:
 	std::string printFrom()
 	{
 		std::string strFwd;
-		if (fromType == CQ::msgtype::Group)strFwd += "[群:" + to_string(fromGroup) + "]";
-		if (fromType == CQ::msgtype::Discuss)strFwd += "[讨论组:" + to_string(fromGroup) + "]";
+		if (fromChat.second == msgtype::Group)strFwd += "[群:" + to_string(fromGroup) + "]";
+		if (fromChat.second == msgtype::Discuss)strFwd += "[讨论组:" + to_string(fromGroup) + "]";
 		strFwd += getName(fromQQ, fromGroup) + "(" + to_string(fromQQ) + "):";
 		return strFwd;
 	}
 
 	//转发消息
-	void FwdMsg(const string& message);
+	void fwdMsg();
 	int AdminEvent(const string& strOption);
 	int MasterSet();
-	int DiceReply();
+	int BasicOrder();
+	int InnerOrder();
+	//int CustomOrder();
 	int CustomReply();
 	//判断是否响应
 	bool DiceFilter();
+	bool WordCensor();
+	void operator()();
 	short trusted = 0;
 
 private:
+	bool isVirtual = false;
 	//是否响应
 	bool isAns = false;
-	unsigned int intMsgCnt = 0;
-	bool isBotOff = false;
+	bool isDisabled = false;
 	bool isCalled = false;
 	bool isAuth = false;
-	bool isLinkOrder = false;
 
-	short getGroupAuth(long long group = 0)
-	{
-		if (trusted > 0)return trusted;
-		if (ChatList.count(group))
-		{
-			const int per = CQ::getGroupMemberInfo(group, fromQQ).permissions;
-			if (per > 1)return 0;
-			if (per)return -1;
-		}
-		return -2;
-	}
-
+	int getGroupAuth(long long group = 0);
+public:
+	unsigned int intMsgCnt = 0;
 	//跳过空格
 	void readSkipSpace()
 	{
-		while (intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])))intMsgCnt
-			++;
+		while (intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])))intMsgCnt++;
 	}
 
-	void readSkipColon()
-	{
-		readSkipSpace();
-		while (intMsgCnt < strMsg.length() && strMsg[intMsgCnt] == ':')intMsgCnt++;
-	}
+	void readSkipColon();
 
 	string readUntilSpace()
 	{
 		string strPara;
-		readSkipSpace();
+		readSkipSpace(); 
 		while (intMsgCnt < strMsg.length() && !isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])))
 		{
 			strPara += strMsg[intMsgCnt];
@@ -191,15 +145,12 @@ private:
 	string readPara()
 	{
 		string strPara;
-		while (intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])))intMsgCnt
-			++;
-		while (intMsgCnt < strMsg.length() && !isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])) && !
-			isdigit(static_cast<unsigned char>(strLowerMessage[intMsgCnt]))
-			&& (strLowerMessage[intMsgCnt] != '-') && (strLowerMessage[intMsgCnt] != '+') && (strLowerMessage[intMsgCnt]
-				!= '[') && (strLowerMessage[intMsgCnt] != ']') && (strLowerMessage[intMsgCnt] != '=') && (
-				strLowerMessage[intMsgCnt] != ':')
-			&& intMsgCnt != strLowerMessage.length())
-		{
+		while (intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])))intMsgCnt++;
+		while (intMsgCnt < strMsg.length() && !isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])) && !isdigit(static_cast<unsigned char>(strLowerMessage[intMsgCnt]))
+			&& (strLowerMessage[intMsgCnt] != '-') && (strLowerMessage[intMsgCnt] != '+') 
+			&& (strLowerMessage[intMsgCnt] != '[') && (strLowerMessage[intMsgCnt] != ']') 
+			&& (strLowerMessage[intMsgCnt] != '=') && (strLowerMessage[intMsgCnt] != ':')
+			&& intMsgCnt != strLowerMessage.length()) {
 			strPara += strLowerMessage[intMsgCnt];
 			intMsgCnt++;
 		}
@@ -210,13 +161,12 @@ private:
 	string readDigit(bool isForce = true)
 	{
 		string strMum;
-		if (isForce)
-			while (intMsgCnt < strMsg.length() && !isdigit(static_cast<unsigned char>(strMsg[intMsgCnt])))
-			{
-				if (strMsg[intMsgCnt] < 0)intMsgCnt++;
-				intMsgCnt++;
-			}
-		else while (intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strMsg[intMsgCnt])))intMsgCnt++;
+		if (isForce)while (intMsgCnt < strMsg.length() && !isdigit(static_cast<unsigned char>(strMsg[intMsgCnt])))
+		{
+			if (strMsg[intMsgCnt] < 0)intMsgCnt++;
+			intMsgCnt++;
+		}
+		else while(intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strMsg[intMsgCnt])))intMsgCnt++;
 		while (intMsgCnt < strMsg.length() && isdigit(static_cast<unsigned char>(strMsg[intMsgCnt])))
 		{
 			strMum += strMsg[intMsgCnt];
@@ -392,6 +342,7 @@ private:
 		}
 		return strMum;
 	}
+	void readItems(vector<string>&);
 };
 
 #endif /*DICE_EVENT*/

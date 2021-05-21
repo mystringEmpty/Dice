@@ -1,11 +1,16 @@
-// Json信息获取以及写入
 #pragma once
+
+// Json信息获取以及写入
+
 #include <fstream>
 #include <map>
 #include <vector>
+#include <set>
 #include <filesystem>
 #include "json.hpp"
 #include "EncodingConvert.h"
+
+using nlohmann::json;
 
 class JsonList
 {
@@ -54,25 +59,34 @@ std::enable_if_t<std::is_arithmetic_v<T>, T> readJKey(const std::string& strJson
 	return stoll(strJson);
 }
 
-nlohmann::json freadJson(const std::string& strPath);
+[[deprecated]] nlohmann::json freadJson(const std::string& strPath);
 nlohmann::json freadJson(const std::filesystem::path& path);
+[[deprecated]] void fwriteJson(const std::string& strPath, const json& j);
+void fwriteJson(const std::filesystem::path& strPath, const json& j);
 
-template <typename T1, typename T2, class sort>
-int readJMap(const nlohmann::json& j, std::map<T1, T2, sort>& mapTmp)
+template <class Map>
+int readJMap(const nlohmann::json& j, Map& mapTmp)
 {
 	int intCnt = 0;
 	for (auto it = j.cbegin(); it != j.cend(); ++it)
 	{
-		T1 tKey = readJKey<T1>(it.key());
-		T2 tVal = it.value();
-		
-		tVal = UTF8toGBK(tVal);
-		mapTmp[tKey] = tVal;
+		std::string key = UTF8toGBK(it.key());
+		it.value().get_to(mapTmp[key]);
+		mapTmp[key] = UTF8toGBK(mapTmp[key]);
 		intCnt++;
 	}
 	return intCnt;
 }
-
+template <typename T>
+int readJson(const std::string& strJson, std::set<T>& setTmp) {
+	try {
+		nlohmann::json j(nlohmann::json::parse(strJson));
+		j.get_to(setTmp);
+		return j.size();
+	} catch (...) {
+		return -1;
+	}
+}
 template <typename T1, typename T2>
 int readJson(const std::string& strJson, std::map<T1, T2>& mapTmp)
 {
@@ -87,54 +101,72 @@ int readJson(const std::string& strJson, std::map<T1, T2>& mapTmp)
 	}
 }
 
-template <typename T1, typename T2, typename sort>
-int loadJMap(const std::string& strLoc, std::map<T1, T2, sort>& mapTmp)
-{
-	std::ifstream fin(strLoc);
-	if (fin)
+template<class Map>
+[[deprecated]] int loadJMap(const std::string& strLoc, Map& mapTmp) {
+	nlohmann::json j = freadJson(strLoc);
+	if (j.is_null())return -2;
+	try 
 	{
-		try
-		{
-			nlohmann::json j;
-			fin >> j;
-			fin.close();
-			return readJMap(j, mapTmp);
-		}
-		catch (...)
-		{
-			fin.close();
-			return -1;
-		}
+		return readJMap(j, mapTmp);
 	}
-	return -2;
+	catch (...)
+	{
+		return -1;
+	}
 }
 
-template <typename T>
-std::string writeJKey(std::enable_if_t<!std::is_arithmetic_v<T>, T> strJson)
-{
-	return GBKtoUTF8(strJson);
+template<class Map>
+int loadJMap(const std::filesystem::path& fpLoc, Map& mapTmp) {
+	nlohmann::json j = freadJson(fpLoc);
+	if (j.is_null())return -2;
+	try 
+	{
+		return readJMap(j, mapTmp);
+	}
+	catch (...)
+	{
+		return -1;
+	}
 }
 
-template <typename T>
-std::string writeJKey(std::enable_if_t<std::is_arithmetic_v<T>, T> llJson)
-{
-	return std::to_string(llJson);
-}
 
-template <typename T1, typename T2, typename sort>
-int saveJMap(const std::string& strLoc, std::map<T1, T2, sort> mapTmp)
+//template <class C, class TKey, class TVal, TVal& (C::* U)(const TKey&) = &C::operator[]>
+template <class C>
+[[deprecated]] void saveJMap(const std::string& strLoc, const C& mapTmp)
 {
-	if (mapTmp.empty())return 0;
+	if (mapTmp.empty()) {
+		remove(strLoc.c_str());
+		return;
+	}
 	std::ofstream fout(strLoc);
 	if (fout)
 	{
 		nlohmann::json j;
-		for (auto it : mapTmp)
+		for (auto& [key,val] : mapTmp)
 		{
-			j[writeJKey<T1>(it.first)] = GBKtoUTF8(it.second);
+			j[GBKtoUTF8(key)] = GBKtoUTF8(val);
 		}
 		fout << j.dump(2);
 		fout.close();
 	}
-	return 0;
+}
+
+template <class C>
+void saveJMap(const std::filesystem::path& fpLoc, const C& mapTmp)
+{
+	if (mapTmp.empty()) {
+		remove(fpLoc);
+		return;
+	}
+	std::ofstream fout(fpLoc);
+	if (fout)
+	{
+		nlohmann::json j;
+		for (auto& [key,val] : mapTmp)
+		{
+			j[GBKtoUTF8(key)] = GBKtoUTF8(val);
+		}
+		fout << j.dump(2);
+		fout.close();
+	}
 }
